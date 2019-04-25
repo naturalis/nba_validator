@@ -5,7 +5,7 @@ RUN apk add --no-cache sqlite composer
 RUN docker-php-ext-install bcmath
 RUN mkdir -p /code
 ADD . /code
-WORKDIR /code/tools/validator/PHP
+WORKDIR /code/validator
 RUN composer install
 COPY php.ini /usr/local/etc/php/
 RUN apk add jq
