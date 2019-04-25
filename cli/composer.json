@@ -1,0 +1,5 @@
+{
+    "require": {
+        "league/json-guard": "^1.0"
+    }
+}
