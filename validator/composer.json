@@ -1,5 +1,6 @@
 {
     "require": {
-        "league/json-guard": "^1.0"
+        "league/json-guard": "^1.0",
+        "jmikola/geojson": "^1.0"
     }
 }

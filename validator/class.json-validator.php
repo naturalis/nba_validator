@@ -537,13 +537,34 @@ class JsonValidator {
 
 		print(sprintf("error(s): %s\n",count($this->errors)));
 
+		$value_cutoff = 100;
+
 		foreach($this->errors as $key=>$error)
 		{
+			$causes=[];
+
+			foreach ($error["cause"] as $ekey=>$cause)
+			{
+				if (is_array($cause))
+				{
+					$causes[$ekey]=json_encode($cause);
+				}
+				else
+				{
+					$causes[$ekey]=$cause;
+				}
+				if ($value_cutoff!=0 && strlen($causes[$ekey])>$value_cutoff)
+				{
+					$causes[$ekey]=substr($causes[$ekey],0,$value_cutoff) . "... (value truncated)" ;
+				}
+			}
+
 			echo sprintf("%s. %s: %s\n   cause(s): %s\n   path: %s\n",
 				$key,
 				$error["error_type"],
 	            $error["error_message"],
-	            implode("; ",$error["cause"]),
+	            implode("; ",$causes),
+	            // implode("; ",$error["cause"]),
 	            $error["element_path"]		            
 	         );
 		}
@@ -666,12 +687,14 @@ class JsonValidator {
 		$consistent=[];
 		
 		$i=0;
+
 		foreach($this->json_docs as $object)
 		{
-
 			$doc=$object['doc'];
 
 			$validator = new League\JsonGuard\Validator($doc, $this->schema);
+
+			$validator->getRuleset()->get('format')->addExtension('geo-json', new GeoJsonExtension());
 
 			if ($this->use_ISO8601_date_check)
 			{
@@ -682,7 +705,8 @@ class JsonValidator {
 			{
 				$this->total_valid_docs++;
 
-				if ($this->source_system_defaults!==false) {
+				if ($this->source_system_defaults!==false)
+				{
 					if (isset($this->source_system_defaults['source_system_code']) &&
 						!is_null($this->source_system_defaults['source_system_code']))
 		                $doc->sourceSystem->code = $this->source_system_defaults['source_system_code'];
@@ -709,11 +733,11 @@ class JsonValidator {
 						$this->_storeId($doc->{$this->id_element_name});
 					}
                 }
-
 			}
 			else
 			{
-                if (isset($doc->{$this->id_element_name})) {
+                if (isset($doc->{$this->id_element_name}))
+                {
                     $id = $doc->{$this->id_element_name};
                 }
                 else
@@ -1234,6 +1258,28 @@ class ISO8601DateTimeFormatExtension implements FormatExtensionInterface
 		elseif (!self::assertDateValue($parts[1],$parts[5],$parts[7]))
 		{
             return \League\JsonGuard\error(sprintf('Invalid date "%s"',$value), $validator);
+		}
+    }
+}
+
+class GeoJsonExtension implements FormatExtensionInterface
+{
+	const ACCEPTED_GEO_JSON_TYPES = ['Polygon','MultiPolygon'];
+
+    public function validate($value, Validator $validator)
+    {
+		try
+		{
+			$geojson = \GeoJson\GeoJson::jsonUnserialize($value);
+
+			if (!in_array($value->type,self::ACCEPTED_GEO_JSON_TYPES))
+			{
+				throw new Exception(sprintf('Unsupported GeoJSON-type "%s".',$value->type));
+			}
+		}
+		catch(Exception $e)
+		{
+			return \League\JsonGuard\error($e->getMessage(), $validator);
 		}
     }
 }

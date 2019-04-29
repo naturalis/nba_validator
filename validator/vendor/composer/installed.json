@@ -1,5 +1,60 @@
 [
     {
+        "name": "jmikola/geojson",
+        "version": "1.0.2",
+        "version_normalized": "1.0.2.0",
+        "source": {
+            "type": "git",
+            "url": "https://github.com/jmikola/geojson.git",
+            "reference": "6ec3016cc0215667b7775f6ead7bd0337ad66eee"
+        },
+        "dist": {
+            "type": "zip",
+            "url": "https://api.github.com/repos/jmikola/geojson/zipball/6ec3016cc0215667b7775f6ead7bd0337ad66eee",
+            "reference": "6ec3016cc0215667b7775f6ead7bd0337ad66eee",
+            "shasum": ""
+        },
+        "require": {
+            "php": ">=5.3.3"
+        },
+        "require-dev": {
+            "phpunit/phpunit": "~3.7"
+        },
+        "time": "2015-09-27T15:35:21+00:00",
+        "type": "library",
+        "extra": {
+            "branch-alias": {
+                "dev-master": "1.0-dev"
+            }
+        },
+        "installation-source": "dist",
+        "autoload": {
+            "psr-0": {
+                "GeoJson\\": "src/"
+            },
+            "classmap": [
+                "stubs/"
+            ]
+        },
+        "notification-url": "https://packagist.org/downloads/",
+        "license": [
+            "MIT"
+        ],
+        "authors": [
+            {
+                "name": "Jeremy Mikola",
+                "email": "jmikola@gmail.com"
+            }
+        ],
+        "description": "GeoJSON implementation for PHP",
+        "homepage": "https://github.com/jmikola/geojson",
+        "keywords": [
+            "geo",
+            "geojson",
+            "geospatial"
+        ]
+    },
+    {
         "name": "league/json-guard",
         "version": "1.0.1",
         "version_normalized": "1.0.1.0",

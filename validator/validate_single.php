@@ -5,6 +5,7 @@
 	include_once('class.json-validator.php');
 
 	$cfg = getopt("",["file:","schema:","merge:"]);
+
 	if (is_null($cfg["file"] ) || is_null($cfg["schema"]))
 	{
 		$t[]="usage:";

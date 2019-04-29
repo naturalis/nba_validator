@@ -32,11 +32,27 @@ class ComposerStaticInitffd7546dbe34280a2cb007f9adf2591e
         ),
     );
 
+    public static $prefixesPsr0 = array (
+        'G' => 
+        array (
+            'GeoJson\\' => 
+            array (
+                0 => __DIR__ . '/..' . '/jmikola/geojson/src',
+            ),
+        ),
+    );
+
+    public static $classMap = array (
+        'JsonSerializable' => __DIR__ . '/..' . '/jmikola/geojson/stubs/JsonSerializable.php',
+    );
+
     public static function getInitializer(ClassLoader $loader)
     {
         return \Closure::bind(function () use ($loader) {
             $loader->prefixLengthsPsr4 = ComposerStaticInitffd7546dbe34280a2cb007f9adf2591e::$prefixLengthsPsr4;
             $loader->prefixDirsPsr4 = ComposerStaticInitffd7546dbe34280a2cb007f9adf2591e::$prefixDirsPsr4;
+            $loader->prefixesPsr0 = ComposerStaticInitffd7546dbe34280a2cb007f9adf2591e::$prefixesPsr0;
+            $loader->classMap = ComposerStaticInitffd7546dbe34280a2cb007f9adf2591e::$classMap;
 
         }, null, ClassLoader::class);
     }

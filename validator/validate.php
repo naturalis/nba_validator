@@ -1,7 +1,5 @@
 <?php
 
- 	// php validate.php --outdir=/tmp/ --schema=/opt/git/schemas/specimen--v2.17.json --file=/data/infile.jsonl 
-
 	require __DIR__ . '/vendor/autoload.php';
 
 	include_once('class.json-validator.php');
@@ -28,7 +26,7 @@
 
 	$validator->setAllowDoubleIds(false);
 	$validator->setFailOnAnyError(false);
-	$validator->setUseISO8601DateCheck(false);
+	$validator->setUseISO8601DateCheck(true);
 	$validator->setMaxOutfileLength(500000);
 
 	if (is_dir($cfg["file"]))
