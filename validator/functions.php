@@ -400,7 +400,7 @@
 
 		if (isset($job["delete_files_line_count"]))
 		{
-			$d[] = sprintf("delete file overview_:");
+			$d[] = sprintf("_delete file overview_:");
 
 			foreach ($job["delete_files_line_count"] as $type => $files)
 			{
