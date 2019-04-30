@@ -6,35 +6,30 @@
 	include_once('class.json-validator.php');
 	include_once('functions.php');
 
-/*
-	$cfg = getopt("",["outdir:","repository:","logserver:","jobfolder:","datafolder:","outfile_lines:"]);
+	/*
+		$cfg = getopt("",["outdir:","repository:","logserver:","jobfolder:","datafolder:","outfile_lines:"]);
 
-	if (is_null($cfg["outdir"]) || is_null($cfg["repository"]))
-	{
-		$t="usage:\n".
-		     "sudo php process_datasets.php --outdir --repository [--jobfolder --datafolder] [--logserver]\n".
-		     "  --outdir         target folder for output of processed files (`--outdir=/data/output/`)\n".
-		     "  --repository     source folder with datasets (`--repository=/data/datasets/`)\n" .
-		     "  --jobfolder      dataset target folder for next step in import chain\n" .
-		     "                   (optional; if provided, --datafolder is also required)\n" .
-		     "  --datafolder     datafile target folder for next step in import chain\n" .
-		     "                   (optional; if provided, --jobfolder is also required)\n" .
-		     "  --logserver      elasticsearch logsever adress (optional)\n" .
-		     "  --outfile_lines  max length in lines validator output files (optional; default 500000; use 0 for all in one)\n"
-		     ;
-		     
-		echo $t;
-		exit(0);
-	}
-*/
+		if (is_null($cfg["outdir"]) || is_null($cfg["repository"]))
+		{
+			$t="usage:\n".
+			     "sudo php process_datasets.php --outdir --repository [--jobfolder --datafolder] [--logserver]\n".
+			     "  --outdir         target folder for output of processed files (`--outdir=/data/output/`)\n".
+			     "  --repository     source folder with datasets (`--repository=/data/datasets/`)\n" .
+			     "  --jobfolder      dataset target folder for next step in import chain\n" .
+			     "                   (optional; if provided, --datafolder is also required)\n" .
+			     "  --datafolder     datafile target folder for next step in import chain\n" .
+			     "                   (optional; if provided, --jobfolder is also required)\n" .
+			     "  --logserver      elasticsearch logsever adress (optional)\n" .
+			     "  --outfile_lines  max length in lines validator output files (optional; default 500000; use 0 for all in one)\n"
+			     ;
+			     
+			echo $t;
+			exit(0);
+		}
+	*/
 
-	$suppress_slack_posts = array_key_exists("suppress_slack_posts",@getopt("",["suppress_slack_posts"]));
-
-	// $log_server_address = isset($cfg["logserver"]) ? $cfg["logserver"] : null;
-	// $preprocessor_job_folder = isset($cfg["jobfolder"]) ? $cfg["jobfolder"] : null;
-	// $preprocessor_file_folder = isset($cfg["datafolder"]) ? $cfg["datafolder"] : null;
-	// $outfile_lines = isset($cfg["outfile_lines"]) ? intval($cfg["outfile_lines"]) : 500000;
-
+	$suppress_slack_posts = isset($_ENV["SLACK_ENABLED"]) ? $_ENV["SLACK_ENABLED"]==1 : false;
+	$slack_hook = isset($_ENV["SLACK_WEBHOOK"]) ? $_ENV["SLACK_WEBHOOK"] : null;
 	$log_server_address = isset($_ENV["logserver"]) ? $_ENV["logserver"] : null;
 	$preprocessor_job_folder = isset($_ENV["jobfolder"]) ? $_ENV["jobfolder"] : null;
 	$preprocessor_file_folder = isset($_ENV["datafolder"]) ? $_ENV["datafolder"] : null;
@@ -153,12 +148,23 @@
 
 		storeUpdatedJobFile( $job );
 
+		if (!$suppress_slack_posts)
+		{
+			if (!is_null($slack_hook))
+			{
+				postSlackJobResults( $slack_hook, $job );
+			}
+			else
+			{
+				echo sprintf("error: slack hook missing from ENV"), "\n";
+			}
+		}	
+		else
+		{
+			echo sprintf("slack feedback suppressed"), "\n";
+		}
+
 		echo sprintf("finished job %s\n",$job["id"]);
 		echo sprintf("job file: %s\n",$job["dataset_filename"]);
 		echo "job took ", $time_taken, "\n\n";
-
-		if (!$suppress_slack_posts)
-		{
-			postSlackJobResults( $job );
-		}	
 	}

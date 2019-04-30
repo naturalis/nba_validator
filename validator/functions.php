@@ -1,7 +1,5 @@
 <?php
 
-	define('SLACK_HOOK','https://hooks.slack.com/services/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');
-
 	function getConfigFile()
 	{
 		$cfg = getopt("",["config:"]);
@@ -344,13 +342,13 @@
 		return $job;
 	}
 
-	function postSlackJobResults( $job, $include_error_summary = true )
+	function postSlackJobResults( $slack_hook, $job, $include_error_summary = true )
 	{
 		// overview of input files in job
 		$d=[];
 
-		$d[] = json_encode([ "text" => sprintf("*validator* completed job *`%s`* for *%s* with status *%s* (took %s)",
-			$job["id"], $job["data_supplier"], $job["status"], $job["validator_time_taken"])]);
+		$d[]=  sprintf("*validator* completed job *`%s`* for *%s* with status *%s* (took %s)",
+			$job["id"], $job["data_supplier"], $job["status"], $job["validator_time_taken"]);
 
 		if (isset($job["input"]))
 		{
@@ -378,12 +376,12 @@
 			}
 		}
 
-		// job result overview
-		$d=[];
 		$error_summary=[];
 
 		if (isset($job["validator"]))
 		{
+			$d[] = sprintf("_validation overview_:");
+
 			foreach ($job["validator"] as $type => $val)
 			{
 				$d[] = sprintf("> %s: %s valid docs, %s invalid, %s broken",
@@ -402,6 +400,8 @@
 
 		if (isset($job["delete_files_line_count"]))
 		{
+			$d[] = sprintf("delete file overview_:");
+
 			foreach ($job["delete_files_line_count"] as $type => $files)
 			{
 				foreach ($files as $val)
@@ -411,27 +411,20 @@
 			}
 		}
 
-		$doc = json_encode([ "text" => implode("\n",$d)]);
+		$doc = implode("\n", $d);
 
-		$response = postToSlack($doc);
-
-
-		// error summary
 		if ($include_error_summary && !empty($error_summary))
 		{
-			$doc = json_encode([ "text" => sprintf("error summary:\n```%s```",print_r($error_summary,true))]);
-			$response = postToSlack($doc);
+			$doc = $doc . "\n\n" . sprintf("error summary:\n```%s```",print_r($error_summary,true)). "\n";
 		}
-	}
 
+		$doc = $doc . "\n" . sprintf("---validator job %s report end",$job["id"]) ;
 
-	function postToSlack( $doc )
-	{
-		$ch = curl_init( SLACK_HOOK );
+		$ch = curl_init( $slack_hook );
 		curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 		curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
-		curl_setopt($ch, CURLOPT_POSTFIELDS,$doc);
+		curl_setopt($ch, CURLOPT_POSTFIELDS,json_encode([ "text" => $doc]));
 		$r = curl_exec($ch);
 		curl_close($ch);
 		return $r;
