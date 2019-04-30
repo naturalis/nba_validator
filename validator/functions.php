@@ -347,7 +347,7 @@
 		// overview of input files in job
 		$d=[];
 
-		$d[]=  sprintf("*validator* completed job *`%s`* for *%s* with status *%s* (took %s)",
+		$d[]=  sprintf("*validator* completed job *`%s`* for *%s* with status *%s* (took %s):",
 			$job["id"], $job["data_supplier"], $job["status"], $job["validator_time_taken"]);
 
 		if (isset($job["input"]))
@@ -418,7 +418,7 @@
 			$doc = $doc . "\n\n" . sprintf("error summary:\n```%s```",print_r($error_summary,true)). "\n";
 		}
 
-		$doc = $doc . "\n" . sprintf("---validator job %s report end",$job["id"]) ;
+		$doc = $doc . "\n" . sprintf("_--->validator job %s report end_",$job["id"]) ;
 
 		$ch = curl_init( $slack_hook );
 		curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
