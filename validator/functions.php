@@ -352,10 +352,10 @@
 
 		if (isset($job["input"]))
 		{
-			$d[] = sprintf("*%s* data files:",$type);
-
 			foreach ($job["input"] as $type => $files)
 			{
+				$d[] = sprintf("*%s* data files:",$type);
+
 				foreach ($files as $file)
 				{
 					$d[] =sprintf("> %s",basename($file["path"]));
@@ -365,10 +365,10 @@
 
 		if (isset($job["delete"]))
 		{
-			$d[] = sprintf("*%s* delete files:",$type);
-
 			foreach ($job["delete"] as $type => $files)
 			{
+				$d[] = sprintf("*%s* delete files:",$type);
+
 				foreach ($files as $file)
 				{
 					$d[] =sprintf("> %s",basename($file));
