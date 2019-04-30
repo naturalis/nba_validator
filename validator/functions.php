@@ -348,17 +348,30 @@
 	{
 		// overview of input files in job
 		$d=[];
+		$d[] = sprintf("*validator* job *`%s`* for *%s* processed files:",$job["id"], $job["data_supplier"]);
 
 		if (isset($job["input"]))
 		{
+			$d[] = sprintf("*%s* data files:",$type);
+
 			foreach ($job["input"] as $type => $files)
 			{
-				$d[] = sprintf("*validator* job *`%s`* for *%s* processed files of data type *%s*:",
-					$job["id"], $job["data_supplier"], $type);
-
 				foreach ($files as $file)
 				{
 					$d[] =sprintf("> %s",basename($file["path"]));
+				}
+			}
+		}
+
+		if (isset($job["delete"]))
+		{
+			$d[] = sprintf("*%s* delete files:",$type);
+
+			foreach ($job["delete"] as $type => $files)
+			{
+				foreach ($files as $file)
+				{
+					$d[] =sprintf("> %s",basename($file));
 				}
 			}
 		}
