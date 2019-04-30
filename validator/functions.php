@@ -348,13 +348,15 @@
 	{
 		// overview of input files in job
 		$d=[];
-		$d[] = sprintf("*validator* job *`%s`* for *%s* processed files:",$job["id"], $job["data_supplier"]);
+
+		$d[] = json_encode([ "text" => sprintf("*validator* completed job *`%s`* for *%s* with status *%s* (took %s)",
+			$job["id"], $job["data_supplier"], $job["status"], $job["validator_time_taken"])]);
 
 		if (isset($job["input"]))
 		{
 			foreach ($job["input"] as $type => $files)
 			{
-				$d[] = sprintf("*%s* data files:",$type);
+				$d[] = sprintf("_%s_ data files:",$type);
 
 				foreach ($files as $file)
 				{
@@ -367,7 +369,7 @@
 		{
 			foreach ($job["delete"] as $type => $files)
 			{
-				$d[] = sprintf("*%s* delete files:",$type);
+				$d[] = sprintf("_%s_ delete files:",$type);
 
 				foreach ($files as $file)
 				{
@@ -375,10 +377,6 @@
 				}
 			}
 		}
-
-		$doc = json_encode([ "text" => implode("\n",$d)]);
-		$response = postToSlack($doc);
-
 
 		// job result overview
 		$d=[];
@@ -388,7 +386,7 @@
 		{
 			foreach ($job["validator"] as $type => $val)
 			{
-				$d[] = sprintf("%s: %s valid docs, %s invalid, %s broken",
+				$d[] = sprintf("> %s: %s valid docs, %s invalid, %s broken",
 					$type,
 					$val["results"]["valid_json_docs"],
 					$val["results"]["invalid_json_docs"],
@@ -408,13 +406,12 @@
 			{
 				foreach ($files as $val)
 				{
-					$d[] = sprintf("%s: found delete file `%s` with %s lines", $type, $val["file"], $val["count"]);
+					$d[] = sprintf("> %s: found delete file `%s` with %s lines", $type, $val["file"], $val["count"]);
 				}
 			}
 		}
 
-		$doc = json_encode([ "text" => sprintf("*validator* completed job *`%s`* for *%s* with status *%s* in %s\n> %s",
-			$job["id"], $job["data_supplier"], $job["status"], $job["validator_time_taken"], implode("\n> ",$d))]);
+		$doc = json_encode([ "text" => implode("\n",$d)]);
 
 		$response = postToSlack($doc);
 
