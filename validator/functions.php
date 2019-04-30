@@ -1,5 +1,7 @@
 <?php
 
+	define('SLACK_HOOK','https://hooks.slack.com/services/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');
+
 	function getConfigFile()
 	{
 		$cfg = getopt("",["config:"]);
@@ -342,8 +344,30 @@
 		return $job;
 	}
 
-	function postSlackUpdate( $url, $job, $include_error_summary = true )
+	function postSlackJobResults( $job, $include_error_summary = true )
 	{
+		// overview of input files in job
+		$d=[];
+
+		if (isset($job["input"]))
+		{
+			foreach ($job["input"] as $type => $files)
+			{
+				$d[] = sprintf("*validator* job *`%s`* for *%s* processed files of data type *%s*:"
+					$job["id"], $job["data_supplier"], $type);
+
+				foreach ($files as $file)
+				{
+					$d[] =sprintf("> %s",basename($file["path"]));
+				}
+			}
+		}
+
+		$doc = json_encode([ "text" => implode("\n",$d)]);
+		$response = postToSlack($doc);
+
+
+		// job result overview
 		$d=[];
 		$error_summary=[];
 
@@ -376,26 +400,29 @@
 			}
 		}
 
+		$doc = json_encode([ "text" => sprintf("*validator* completed job *`%s`* for *%s* with status *%s* in %s\n> %s",
+			$job["id"], $job["data_supplier"], $job["status"], $job["validator_time_taken"], implode("\n> ",$d))]);
 
-		$ch = curl_init($url);
+		$response = postToSlack($doc);
+
+
+		// error summary
+		if ($include_error_summary && !empty($error_summary))
+		{
+			$doc = json_encode([ "text" => sprintf("error summary:\n```%s```",print_r($error_summary,true))]);
+			$response = postToSlack($doc);
+		}
+	}
+
+
+	function postToSlack( $doc )
+	{
+		$ch = curl_init( SLACK_HOOK );
 		curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 		curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
-
-
-		$doc = json_encode([ "text" => sprintf("*validator* completed job *`%s`* for *%s* with status *%s* in %s\n> %s",
-			$job["id"], $job["data_supplier"], $job["status"], $job["validator_time_taken"], implode("\n> ",$d))]);
 		curl_setopt($ch, CURLOPT_POSTFIELDS,$doc);
-		$response = curl_exec($ch);
-
-		if ($include_error_summary && !empty($error_summary))
-		{
-			
-			$doc = json_encode([ "text" => sprintf("error summary:\n```%s```",print_r($error_summary,true))]);
-			curl_setopt($ch, CURLOPT_POSTFIELDS,$doc);
-			$response = curl_exec($ch);
-		}
-
+		$r = curl_exec($ch);
 		curl_close($ch);
-
+		return $r;
 	}

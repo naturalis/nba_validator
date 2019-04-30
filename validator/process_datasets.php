@@ -159,7 +159,6 @@
 
 		if (!$suppress_slack_posts)
 		{
-			postSlackUpdate( 'https://hooks.slack.com/services/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', $job );
-		}
-	
+			postSlackJobResults( $job );
+		}	
 	}
