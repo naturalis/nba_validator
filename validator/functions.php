@@ -353,7 +353,7 @@
 		{
 			foreach ($job["input"] as $type => $files)
 			{
-				$d[] = sprintf("*validator* job *`%s`* for *%s* processed files of data type *%s*:"
+				$d[] = sprintf("*validator* job *`%s`* for *%s* processed files of data type *%s*:",
 					$job["id"], $job["data_supplier"], $type);
 
 				foreach ($files as $file)
