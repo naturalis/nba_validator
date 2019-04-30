@@ -418,7 +418,7 @@
 			$doc = $doc . "\n\n" . sprintf("error summary:\n```%s```",print_r($error_summary,true)). "\n";
 		}
 
-		$doc = $doc . "\n" . sprintf("_--->validator job %s report end_",$job["id"]) ;
+		$doc = $doc . "\n" . sprintf("_---validator job %s report end_",$job["id"]) ;
 
 		$ch = curl_init( $slack_hook );
 		curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
