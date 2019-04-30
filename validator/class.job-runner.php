@@ -2,7 +2,6 @@
 
 	class jobRunner
 	{
-
 		private $job;
 		private $cfg;
 		private $type;
@@ -302,65 +301,6 @@
 			}
 		}
 
-		private function _runValidator()
-		{
-			$this->processed_input_files = 0;
-
-			foreach($this->job["input"] as $type => $files)
-			{
-				$this->_feedback(sprintf("processing %s",$type));
-				$this->type = $type;
-				$this->_initValidator();
-
-				if ($this->job["indices"][$type]!=false)
-				{
-					$files = $this->_reorderFilesByIndexFile($this->job["indices"][$type],$files);
-				}
-
-				foreach((array)$files as $file)
-				{
-					$this->validator->addFileToValidate($file["tmp_path"],$file["path"]);
-				}
-
-				$this->validator->run();
-
-				$validator_results = $this->validator->getValidationOverview();
-
-				foreach ((array)$validator_results["outfiles"]["valid"] as $value)
-				{
-					$this->job["validated_output"][] = $value;
-				}
-
-				$this->job["validator"][$this->type] = 
-					[
-						"settings" => $this->validator->getSettingsOverview(),
-						"results" => $this->validator->getValidationOverview(),
-						"error_summary" => $this->validator->getErrorSummary()
-					];
-
-				$this->_feedback( "### validation result summary" );
-				$this->_feedback( "# " . $this->job["data_supplier"] . ":" . $this->type );
-				$this->_feedback( "# files / lines / errors: " . 
-					$validator_results["files_read"] . " / " . 
-					$validator_results["lines_read"] . " / " . 
-					$validator_results["errors"]
-				);
-				$this->_feedback( "# valid docs / invalid / broken: " .
-					$validator_results["valid_json_docs"] . " / " .
-					$validator_results["invalid_json_docs"] . " / " .
-					$validator_results["broken_docs"]
-				);
-
-				$this->processed_input_files++;
-			}
-
-			if ($this->processed_input_files==0)
-			{
-				$this->_feedback( "no data files were validated" );
-			}
-
-		}
-
 		private function _reorderFilesByIndexFile( $index_file, $files )
 		{
 
@@ -419,6 +359,175 @@
 			}
 
 			return $files;
+		}
+
+		private function _runValidator()
+		{
+			if ($this->job["use_parallel_processing"]==true)
+			{
+				$this->_runValidatorSerially();
+
+ 				// safety
+				//$this->_runValidatorParallelly();
+
+				/*
+					TODO:
+					coming in, the overall slicing status ($this->job["slicing"]["status"]) is 
+					'pending'. when 'pending', _runValidatorParallelly() each time takes one
+					slice, runs it through the validator, and sets the slice's status to
+					'processing', then 'processed'. once all slices of a job have the status
+					'processed', the overall status ($this->job["slicing"]["status"]) should
+					be set to 'processed'. process_datasets.php should look at this every time
+					$job_runner->run() returns, and adjust the overall job status accordingly.
+
+					also, re-set the overall job status to pending once a slice to process has
+					been selected (or none is available x2).
+				*/
+			}
+			else
+			{
+				$this->_runValidatorSerially();
+			}			
+		}
+
+		private function _runValidatorSerially()
+		{
+			$this->_feedback("using serial processing");
+
+			$this->processed_input_files = 0;
+
+			foreach($this->job["input"] as $type => $files)
+			{
+				$this->_feedback(sprintf("processing %s",$type));
+				$this->type = $type;
+				$this->_initValidator();
+
+				if ($this->job["indices"][$type]!=false)
+				{
+					$files = $this->_reorderFilesByIndexFile($this->job["indices"][$type],$files);
+				}
+
+				foreach((array)$files as $file)
+				{
+					$this->validator->addFileToValidate($file["tmp_path"],$file["path"]);
+				}
+
+				$this->validator->run();
+
+				$validator_results = $this->validator->getValidationOverview();
+
+				foreach ((array)$validator_results["outfiles"]["valid"] as $value)
+				{
+					$this->job["validated_output"][] = $value;
+				}
+
+				$this->job["validator"][$this->type] = 
+					[
+						"settings" => $this->validator->getSettingsOverview(),
+						"results" => $this->validator->getValidationOverview(),
+						"error_summary" => $this->validator->getErrorSummary()
+					];
+
+				$this->_feedback(">  validation result summary");
+				$this->_feedback(sprintf(">  %s:%s", $this->job["data_supplier"], $this->type));
+				$this->_feedback(sprintf(">  files; lines; errors: %s; %s; %s",
+					$validator_results["files_read"],$validator_results["lines_read"],$validator_results["errors"]));
+				$this->_feedback( sprintf(">  valid docs; invalid; broken: %s; %s; %s",
+					$validator_results["valid_json_docs"],$validator_results["invalid_json_docs"],$validator_results["broken_docs"]));
+
+				$this->processed_input_files++;
+			}
+
+			if ($this->processed_input_files==0)
+			{
+				$this->_feedback( "no data files were validated" );
+			}
+		}
+
+		private function _runValidatorParallelly()
+		{
+			$this->_feedback(sprintf("using parallel processing (%s)",$this->job["slicing"]["id"]));
+
+			if ($this->job["slicing"]["status"]!="pending")
+			{
+				$this->_feedback(sprintf("nothing to validate: slicing status is '%s'",$this->job["slicing"]["status"]));
+				return;
+			}
+
+			foreach($this->job["slicing"]["input"] as $type => $slices)
+			{
+				$lowest_index=-1;
+				$slice_to_process=[];
+
+				foreach($slices as $key => $slice)
+				{
+					if ($slice["status"]=="pending")
+					{
+						foreach($slice["morsels"] as $morsel)
+						{
+							$morsel_index=-1;
+							if ($morsel_index==-1 || $morsel["index"]<$morsel_index)
+							{
+								$morsel_index = $morsel["index"];
+							}
+						}
+
+						if ($lowest_index==-1 || $morsel_index<$lowest_index)
+						{
+							$slice_to_process = $slice;
+							$type_to_slice = $type;
+							$slice_key = $key;
+							$lowest_index = $morsel_index;
+						}
+					}
+				}
+
+				if ($lowest_index==-1)
+				{
+					$this->_feedback("nothing to validate: no slices with status 'pending'");
+					return;
+				}
+			}
+
+			$this->type = $type_to_slice;
+			
+			$this->job["slicing"]["input"][$this->type][$slice_key]["status"]="processing";
+			$this->_storeUpdatedJobFile( $this->job );
+
+			$this->_feedback(sprintf("processing %s, slice #%s",$this->type,$slice_to_process["index"]));
+
+			$this->validator_save_file_basename = 
+				$this->cfg[$this->type]["save_file_basename"] . 
+				sprintf($this->job["slicing"]["file_add"],$slice_to_process["index"]);
+
+			$this->_initValidator();
+
+			$this->validator->setTotalDocListLength( $slice_to_process["size"] );
+
+			foreach($slice_to_process["morsels"] as $morsel)
+			{
+				$file = new SplFileObject($morsel["path"]);
+				if (!$file->eof())
+				{
+					$file->seek($morsel["start"]);
+					for($i=0;$i<$morsel["size"];$i++)
+					{
+						$doc = $file->current();
+						$this->validator->addDocToValidate( $doc, $morsel["size"]+$i, $morsel["original_path"] );
+						$this->validator->runDocListValidation();
+						$file->next();
+					}
+				}
+			}
+
+			$this->validator->runDocListValidation( true );
+
+			$validator_results = $this->validator->getValidationOverview();
+
+			$this->job["slicing"]["input"][$this->type][$slice_key]["validator"] = $validator_results;
+			$this->job["slicing"]["input"][$this->type][$slice_key]["status"] = "processed";
+
+			$this->_storeUpdatedJobFile( $this->job );
 		}
 
 		private function _feedback( $msg )

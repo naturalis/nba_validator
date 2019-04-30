@@ -80,6 +80,22 @@
 			$job["status"]="processing";
 			storeUpdatedJobFile( $job );
 			$job_runner->run();
+			/*
+				TODO:
+				overall slicing status ($this->job["slicing"]["status"]) is 'pending'.
+				_runValidatorParallelly() validates each slice, and sets the its status
+				to then 'processed'. once all slices of a job have the status
+				'processed', the overall status ($this->job["slicing"]["status"]) should
+				be set to 'processed' in the _runValidator(). process_datasets.php (this
+				file) should look at this every time $job_runner->run() returns, and
+				adjust the overall job status accordingly, either back to 'pending' or
+				to 'validated'.
+				
+				also, the overall job status should be put back to 'pending' while
+				$job_runner->run() is running, or it will be ignored by other, parallel
+				processes. --> we should do this in the process, once a slice to 
+				process has been selected (or none is available), as a sort of lock out.
+			*/
 			$status="validated";
 		} 
 		catch(Exception $e)
@@ -92,6 +108,11 @@
 		$job_runner->archiveOriginalFiles();
 
 		$time_taken = secondsToTime(microtime(true) - $time_pre);
+
+		/*
+			TODO:
+			if parallel processing, collect and merge result and error files
+		*/
 
 		$job = $job_runner->getJob();
 

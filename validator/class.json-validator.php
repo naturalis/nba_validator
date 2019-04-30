@@ -343,7 +343,7 @@ class JsonValidator {
 			        	$this->broken_docs[]=$doc;
 			        }
 
-			        // book keeping
+			        // bookkeeping
 			        $line++;
 			        $this->lines_read++;
 			        $this->total_lines_read++;
@@ -569,6 +569,162 @@ class JsonValidator {
 	         );
 		}
     }
+
+	public function runFileListValidation()
+	{
+		$this->_doSourceSystemDefaults();
+		$this->_initializeSQLite();
+		$this->_setTotalLines();
+
+		$this->_feedback(sprintf("lines: %s",$this->total_lines));
+
+		foreach ($this->file_list as $key => $file_item)
+		{
+			$filename = $file_item["file"];
+			$filename_for_reports = is_null($file_item["original_name"]) ? basename($file_item["file"]) : basename($file_item["original_name"]);
+
+			if ($file = fopen($filename, "r"))
+			{
+				$this->_feedback(sprintf("reading: %s",$filename));
+
+				$this->current_line=1;
+
+				while(!feof($file))
+				{
+					$doc=trim(fgets($file));
+
+					if (!$this->_addToLineBufferIfValidJson( $doc, $filename_for_reports ))
+					{
+						continue;
+					}
+
+					$this->_validateLineBuffer();
+				}
+
+				fclose($file);
+
+				$this->total_files_read++;
+			}
+			else
+			{
+				throw new Exception(sprintf('Cannot open %s for reading',$filename));
+			}
+		}
+
+		// processing leftovers
+    	$this->_validateLineBuffer( true );
+
+		// export ID's (if we've stored any)
+		$this->_exportIds();
+    }
+
+	public function addDocToValidate( $doc, $line_number, $filename_for_reports )
+	{
+		$doc=trim($doc);
+
+		$this->current_line = $line_number;
+		$this->line_fed_documents[]=$filename_for_reports;
+		$this->total_files_read = count(array_unique($this->line_fed_documents));
+		$this->_addToLineBufferIfValidJson( $doc, $filename_for_reports );
+	}
+
+	public function setTotalDocListLength( $num )
+	{
+		if (is_int($num))
+		{
+			$this->total_lines = $num;
+		}
+	}
+
+	public function runDocListValidation( $finalize=false )
+	{
+		$this->_doSourceSystemDefaults();
+		$this->_initializeSQLite();
+		$this->_validateLineBuffer( $finalize );
+		if ($finalize)
+		{
+			// export ID's (if we've stored any)
+			$this->_exportIds();
+		}
+	}
+
+	private function _addToLineBufferIfValidJson( $doc, $filename_for_reports )
+	{
+		// set it to "" when it's a comment
+		$doc=$this->_nullifyCommentLine($doc);
+
+		// if it's an empty line, report on it (if we want) and continue to the next line
+		if (strlen($doc)==0)
+		{
+			if ($this->report_on_empty_lines)
+			{
+				$this->_addError([
+					'error_type'=>'document error', 
+					'error_message'=>'document is empty',
+					'file'=>basename($filename_for_reports),
+					'line'=>$this->current_line]);
+			}
+			return false;
+		}
+
+		// parse the line to see if it is valid JSON (if not, an error is generated in the function)
+		$res=$this->_parseDocument($doc,$this->current_line,$filename_for_reports);
+
+		// add the valid JSON documents to the stack of documents to be validated
+		if ($res!==false)
+		{
+			$this->json_docs[]=['file'=>$filename_for_reports,'line'=>$this->current_line,'doc'=>$res];
+		}
+		else
+		{
+			$this->broken_docs[]=$doc;
+		}
+
+		// bookkeeping
+		$this->current_line++;
+		$this->lines_read++;
+		$this->total_lines_read++;
+
+		// if *all* lines are broken, something might be fundamentally wrong, so we abort
+		if (
+			$this->load_error_threshold>0 && 
+			$this->lines_read==$this->load_error_threshold && 
+			count($this->broken_docs)==$this->lines_read
+		)
+		{
+			throw new Exception(sprintf('First %s lines of "%s" are broken (tripped load_error_threshold)',
+				$this->lines_read,$filename_for_reports));
+		}
+	}
+
+	private function _validateLineBuffer( $run_regardless_of_buffer_size=false )
+	{
+	    // once we have enough valid JSON documents, we start validating ('enough' can be manipulated to accomodate memory restrictions)
+	    if (($this->lines_read>=$this->read_buffer_size) || $run_regardless_of_buffer_size)
+		{
+			/*
+				take care:
+				going into _validateJsonDocuments(), $this->json_docs is an array of:
+	    			['file'=>$filename,'line'=>$line,'doc'=>$valid_doc];
+	    		but afterwards, it is an array of just valid JSON-docs.
+
+				$run_regardless_of_buffer_size is for processing the leftovers
+	    	*/
+
+	    	$this->_validateJsonDocuments();
+	    	$this->_checkForDoubleIDs();
+			$this->_writeFiles();
+			$this->_writeErrors();
+			$this->_giveCycleFeedback();
+
+			$this->lines_read=0;
+			$this->json_docs=[];
+			$this->broken_docs=[];
+			$this->invalid_docs=[];
+			$this->errors=[];
+			$this->cycles++;
+	    }
+	}
 
 	private function _getNumberOfFileLines($filename)
 	{

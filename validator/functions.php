@@ -171,6 +171,7 @@
 		$tpl = [
 			"@timestamp" => $job["date"],
 			"job_id" => $job["id"],
+			"data_supplier" => $job["data_supplier"],
 			"index_type" => "",
 			"input_files" => [],
 			"files_read" => 0,
@@ -184,7 +185,7 @@
 			"error_summary" => [],			
 		];
 
-		foreach(["specimen","multimedia","taxon"] as $index_type)
+		foreach(["specimen","multimedia","taxon","geo"] as $index_type)
 		{
 			$doc = $tpl;
 			$doc["index_type"] = $index_type;
@@ -218,48 +219,13 @@
 			$doc = json_encode($doc);
 			$url = rtrim($elastic_log_server,"/") . "/" . $job["id"] . "/logging/validation-" . $index_type;
 
-			$response = putDoc( $doc, $url);
+			$response = postHttpDocument( $doc, $url, "PUT" );
 
 			if ($response!==true)
 			{
 				print sprintf("logger error: %s (%s)\n" , ($response ? $response : '(no response; server unreachable?)'),$url);
 			}
 		}
-	}
-
-	function putDoc( $doc, $url )
-	{
-		$ch = curl_init($url);
-
-		curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-		curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PUT");
-		curl_setopt($ch, CURLOPT_POSTFIELDS,$doc);
-
-		$response = curl_exec($ch);
-
-		// echo $url, "\n";
-		// var_dump($doc);
-		// var_dump($response);
-
-		if ($response) 
-		{
-			try {
-		    	$r=json_decode($response);
-		    	if (isset($r->error) )
-		    	{
-		    		return $r->error;
-		    	}
-		    	else
-		    	{
-		    		return true;
-		    	}
-		    } catch (Exception $e)
-		    {
-		    	return is_object($response) ? json_encode($response) : $response;
-
-		    }
-		}	
 	}
 
 	function storeUpdatedJobFile( $job )
@@ -420,12 +386,38 @@
 
 		$doc = $doc . "\n" . sprintf("_---validator job %s report end_",$job["id"]) ;
 
-		$ch = curl_init( $slack_hook );
+		return postHttpDocument( json_encode([ "text" => $doc]), $slack_hook );
+	}
+
+	function postHttpDocument( $doc, $url, $method = "POST" )
+	{
+		$ch = curl_init($url);
+
 		curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-		curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
-		curl_setopt($ch, CURLOPT_POSTFIELDS,json_encode([ "text" => $doc]));
-		$r = curl_exec($ch);
+		curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
+		curl_setopt($ch, CURLOPT_POSTFIELDS,$doc);
+
+		$response = curl_exec($ch);
+
+		if ($response) 
+		{
+			try {
+		    	$r=json_decode($response);
+		    	if (isset($r->error) )
+		    	{
+		    		$r = $r->error;
+		    	}
+		    	else
+		    	{
+		    		$r = true;
+		    	}
+		    } catch (Exception $e)
+		    {
+		    	$r = is_object($response) ? json_encode($response) : $response;
+		    }
+		}
+
 		curl_close($ch);
 		return $r;
 	}

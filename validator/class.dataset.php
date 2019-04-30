@@ -15,6 +15,7 @@
 		private $is_incremental;
 		private $present_datatypes=[];
 		private $messages=[];
+		private $use_parallel_processing=false;
 
 		private $always_process=false;
 		private $force_data_replace=false;
@@ -171,6 +172,14 @@
 		public function setChangedNames( $index )
 		{
 			$this->changed_file_names=$index;
+		}
+
+		public function setParallelProcessing( $state )
+		{
+			if (is_bool($state))
+			{
+				$this->use_parallel_processing=$state;
+			}
 		}
 
 		public function getMessages()
@@ -382,6 +391,7 @@
 			$this->set["status"] = "pending";
 			$this->set["supplier_config_file"] = $this->supplier_config_file;
 			$this->set["tabula_rasa"] = $this->force_data_replace;
+			$this->set["use_parallel_processing"] = $this->use_parallel_processing;
 
 			foreach($this->present_datatypes as $type)
 			{
