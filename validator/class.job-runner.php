@@ -431,7 +431,7 @@
 				$this->_feedback(sprintf("> %s:%s validation summary", $this->job["data_supplier"], $this->type));
 				$this->_feedback(sprintf("> files;lines;errors: %s;%s;%s",
 					$validator_results["files_read"],$validator_results["lines_read"],$validator_results["errors"]));
-				$this->_feedback( sprintf("> valid docsinvalid;broken: %s;%s;%s",
+				$this->_feedback( sprintf("> valid docs;invalid;broken: %s;%s;%s",
 					$validator_results["valid_json_docs"],$validator_results["invalid_json_docs"],$validator_results["broken_docs"]));
 
 				$this->processed_input_files++;

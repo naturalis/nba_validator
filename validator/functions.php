@@ -165,7 +165,7 @@
 	{
 		if (is_null($elastic_log_server))
 		{
-			return;
+			print "elastic_log_server is empty\n";
 		}
 
 		$tpl = [
