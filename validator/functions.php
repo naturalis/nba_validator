@@ -45,9 +45,20 @@
 
 	function secondsToTime( $seconds )
 	{
-		list($usec, $sec) = explode(' ', $seconds);
-		$usec = str_replace("0.", ".", $usec);
-		return date('H:i:s', $sec) . substr($usec,0,4);
+	  $hours = 0;
+	  $milliseconds = str_replace( "0.", '', $seconds - floor( $seconds ) );
+	  $milliseconds = substr($milliseconds,0,5);
+
+	  if ( $seconds > 3600 )
+	  {
+	    $hours = floor( $seconds / 3600 );
+	  }
+	  $seconds = $seconds % 3600;
+
+	  return str_pad( $hours, 2, '0', STR_PAD_LEFT )
+	       . gmdate( ':i:s', $seconds )
+	       . ($milliseconds ? ".".$milliseconds : '')
+	  ;
 	}
 
 	function readRepository( $repopath )
