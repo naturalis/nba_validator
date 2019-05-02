@@ -366,9 +366,9 @@
 			{
 				$d[] = sprintf("> %s: %s valid docs, %s invalid, %s broken",
 					$type,
-					$val["results"]["valid_json_docs"],
-					$val["results"]["invalid_json_docs"],
-					$val["results"]["broken_docs"]
+					number_format($val["results"]["valid_json_docs"]),
+					number_format($val["results"]["invalid_json_docs"]),
+					number_format($val["results"]["broken_docs"])
 				);
 
 				if ($val["results"]["invalid_json_docs"]>0)
@@ -386,7 +386,7 @@
 			{
 				foreach ($files as $val)
 				{
-					$d[] = sprintf("> %s: found delete file `%s` with %s lines", $type, $val["file"], $val["count"]);
+					$d[] = sprintf("> %s: found delete file `%s` with %s lines", $type, $val["file"], number_format($val["count"]));
 				}
 			}
 		}
