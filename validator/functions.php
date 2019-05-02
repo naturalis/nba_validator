@@ -322,11 +322,15 @@
 
 	function postSlackJobResults( $slack_hook, $job, $include_error_summary = false )
 	{
-		// overview of input files in job
 		$d=[];
 
 		$d[]=  sprintf("*validator* completed job *`%s`* for *%s* with status *%s* (took %s):",
 			$job["id"], $job["data_supplier"], $job["status"], $job["validator_time_taken"]);
+
+		if (!is_null($job["status_info"]))
+		{
+			$d[] = sprintf("_status info:_ %s",$job["status_info"]);
+		}
 
 		if (isset($job["input"]))
 		{
@@ -349,7 +353,7 @@
 
 				foreach ($files as $file)
 				{
-					$d[] =sprintf("> %s",basename($file));
+					$d[] =sprintf("> %s",basename($file["path"]));
 				}
 			}
 		}
