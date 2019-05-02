@@ -131,8 +131,6 @@
 
 		$t["error_files"] = $job["validator_client_error_files"];
 
-		'non-unique id\'s' => isset($this->output_files['non_unique_ids']) ? $this->output_files['non_unique_ids'] : 'n/a',
-
 		$files=[];
 
 		foreach($job["report_dirs"] as $report_dir)
