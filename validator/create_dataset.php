@@ -52,6 +52,11 @@
 			$p->addDirToPrepare($cfg["taxon"]["input_dir"]);
 		}
 
+		if (isset($cfg["geo"]) && $cfg["geo"]["input_dir"] && file_exists($cfg["geo"]["input_dir"]))
+		{
+			$p->addDirToPrepare($cfg["geo"]["input_dir"]);
+		}
+
 		$p->run();
 		$changes = $p->getNameChanges();
 
@@ -80,6 +85,13 @@
 			$d->addInputDirectory($cfg["taxon"]["input_dir"],"taxon");
 			echo sprintf("added %s (%s)\n",$cfg["taxon"]["input_dir"],"taxon");
 			$d->setIsIncremental($cfg["taxon"]["is_incremental"],"taxon");
+		}
+
+		if (isset($cfg["geo"]) && $cfg["geo"]["input_dir"])
+		{
+			$d->addInputDirectory($cfg["geo"]["input_dir"],"geo");
+			echo sprintf("added %s (%s)\n",$cfg["geo"]["input_dir"],"geo");
+			$d->setIsIncremental($cfg["geo"]["is_incremental"],"geo");
 		}
 
 		$d->setSupplierConfigFile($supplierConfigFile);
