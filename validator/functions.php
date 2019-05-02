@@ -131,6 +131,8 @@
 
 		$t["error_files"] = $job["validator_client_error_files"];
 
+		'non-unique id\'s' => isset($this->output_files['non_unique_ids']) ? $this->output_files['non_unique_ids'] : 'n/a',
+
 		$files=[];
 
 		foreach($job["report_dirs"] as $report_dir)
@@ -223,11 +225,6 @@
 					{
 						$doc["input_files"][] = basename($file["original_name"]);
 					}
-				}
-
-				if (isset($job["validator"][$index_type]["error_summary"]))
-				{
-					$doc["error_summary"] = $job["validator"][$index_type]["error_summary"];
 				}
 			}
 
@@ -323,7 +320,7 @@
 		return $job;
 	}
 
-	function postSlackJobResults( $slack_hook, $job, $include_error_summary = true )
+	function postSlackJobResults( $slack_hook, $job, $include_error_summary = false )
 	{
 		// overview of input files in job
 		$d=[];

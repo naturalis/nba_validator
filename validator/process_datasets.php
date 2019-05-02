@@ -174,7 +174,7 @@
 		{
 			if (!is_null($slack_hook))
 			{
-				postSlackJobResults( $slack_hook, $job );
+				postSlackJobResults( $slack_hook, $job, true );
 			}
 			else
 			{
