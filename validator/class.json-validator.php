@@ -1187,8 +1187,9 @@ class JsonValidator {
 
     	if (!isset($this->element_path_error_summary[$index]))
     	{
-    		$l = strlen($error['cause']);
-			$cause = $l > 250 ? sprintf("%s ... (truncated from %s characters)",substr($error['cause'], 0, 250),$l) : $error['cause'];
+    		$c = is_array($error['cause']) ? json_encode($error['cause']) : $error['cause'];
+    		$l = strlen($c);
+			$cause = $l > 250 ? sprintf("%s ... (truncated from %s characters)",substr($c, 0, 250),$l) : $c;
 
     		$example = [
 				'error_type' => $error['error_type'],
