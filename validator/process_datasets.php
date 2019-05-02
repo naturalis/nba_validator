@@ -68,6 +68,7 @@
 	foreach ($jobs as $job)
 	{
 		echo sprintf("reading job %s\n",$job["id"]);
+		echo sprintf("job start: %s\n",date('c',time()));
 
 		$time_pre = microtime(true);
 		$job_runner = new jobRunner($job);
