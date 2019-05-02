@@ -88,8 +88,13 @@
 		$t["job"] = [
 			"id" => $job["id"],
 			"date" => $job["date"],
-			"status" => $job["status"],
+			"status" => $job["status"]
 		];
+
+		if (isset($job["status_info"]))
+		{
+			$t["job"]["status_info"] = $job["status_info"];
+		}
 
 		$t["settings"] =
 			[ "is_incremental" => 
