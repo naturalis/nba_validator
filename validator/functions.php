@@ -129,7 +129,6 @@
 			}
 		}
 
-
 		$t["error_files"] = $job["validator_client_error_files"];
 
 		$files=[];

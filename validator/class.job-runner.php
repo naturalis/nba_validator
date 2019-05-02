@@ -425,7 +425,8 @@
 					[
 						"settings" => $this->validator->getSettingsOverview(),
 						"results" => $this->validator->getValidationOverview(),
-						"error_summary" => $this->validator->getErrorSummary()
+						"error_summary" => $this->validator->getErrorSummary(),
+						"double_ids" => $this->validator->getDoubleIdFilePath(),
 					];
 
 				$this->_feedback(sprintf("> %s:%s validation summary", $this->job["data_supplier"], $this->type));

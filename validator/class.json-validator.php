@@ -290,6 +290,11 @@ class JsonValidator {
 			$this->element_path_error_summary;
 	}
 
+	public function getDoubleIdFilePath()
+	{
+		return isset($this->output_files['non_unique_ids']) ? $this->output_files['non_unique_ids'] : null;
+	}
+
 	public function run()
 	{
 		$this->_doSourceSystemDefaults();
@@ -506,7 +511,8 @@ class JsonValidator {
 				'errors' => isset($this->output_files['errors']) ? array_unique($this->output_files['errors']) : null,
 				'invalid' => isset($this->output_files['invalid']) ? array_unique($this->output_files['invalid']) : null,
 				'broken' => isset($this->output_files['broken']) ? array_unique($this->output_files['broken']) : null,
-				'id\'s' => $this->export_ids ? $this->output_files['ids'] : 'n/a'
+				'id\'s' => $this->export_ids ? $this->output_files['ids'] : 'n/a',
+				'non-unique id\'s' => isset($this->output_files['non_unique_ids']) ? $this->output_files['non_unique_ids'] : 'n/a',
 			]
 		];
     }
