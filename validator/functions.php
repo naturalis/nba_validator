@@ -182,7 +182,7 @@
 					{
 						foreach($job["report_dirs"] as $report_dir)
 						{
-							if (file_exists($report_dir . "/errors/" . ))
+							if (file_exists($report_dir . "/errors/" ))
 							{
 								$t = $report_dir . "/errors/" . basename($file);
 							}
