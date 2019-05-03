@@ -279,7 +279,7 @@
 			else
 			{
 				$read_buffer_size = (int)$this->cfg["settings"]["read_buffer_size"];
-				$read_buffer_size = $read_buffer_size < 100 || $read_buffer_size > self::READ_BUFFER_SIZE ? self::READ_BUFFER_SIZE : $read_buffer_size;
+				$read_buffer_size = $read_buffer_size < 10 || $read_buffer_size > self::READ_BUFFER_SIZE ? self::READ_BUFFER_SIZE : $read_buffer_size;
 			}
 
 			$this->validator->setReadBufferSize($read_buffer_size);
