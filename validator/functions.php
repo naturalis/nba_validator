@@ -87,8 +87,10 @@
 		
 		$t["job"] = [
 			"id" => $job["id"],
+			"data_supplier" => $job["data_supplier"],
 			"date" => $job["date"],
-			"status" => $job["status"]
+			"status" => $job["status"],
+			"validator_time_taken" => $job["validator_time_taken"],
 		];
 
 		if (isset($job["status_info"]))
@@ -96,10 +98,10 @@
 			$t["job"]["status_info"] = $job["status_info"];
 		}
 
-		$t["settings"] =
-			[ "is_incremental" => 
-				[ "specimen" => $job["is_incremental"]["specimen"],
-				  "multimedia" => $job["is_incremental"]["multimedia"] ] ];
+		$t["job_settings"] = [
+			"tabula_rasa" => $job["tabula_rasa"],
+			"is_incremental" => $job["is_incremental"]
+		];
 
 		if (isset($job["input"]))
 		{
@@ -113,6 +115,18 @@
 			}
 		}
 
+		if (isset($job["delete"]))
+		{
+			foreach($job["delete"] as $type=>$files)
+			{
+				$t["delete"][$type]=[];
+				foreach($files as $file)
+				{
+					$t["delete"][$type][]=["path"=>$file["path"]];
+				}		
+			}
+		}
+
 		if (isset($job["pre-validator warnings"]))
 		{
 			$t["pre-validator warnings"]=$job["pre-validator warnings"];
@@ -122,14 +136,20 @@
 		{
 			foreach($job["validator"] as $type=>$results)
 			{
+				$t["validator"][$type]["settings"] = [
+					"schema_file" => $results["settings"]["schema_file"],
+					"additional_schema_file" => $results["settings"]["additional_schema_file"] ? $results["settings"]["additional_schema_file"] : '-',
+					"allow_double_ids" => $results["settings"]["allow_double_ids"] ? 'y' : 'n',
+					"use_ISO8601_date_check" => $results["settings"]["use_ISO8601_date_check"] ? 'y' : 'n',
+				];
+
 				unset($results["results"]["infiles"]);
 				unset($results["results"]["outfiles"]);
-			
-				$t["validator"][$type]=$results["results"];
+				unset($results["results"]["error_summary"]);
+
+				$t["validator"][$type]["results"] = $results["results"];
 			}
 		}
-
-		$t["error_files"] = $job["validator_client_error_files"];
 
 		$files=[];
 
@@ -162,7 +182,14 @@
 					{
 						foreach($job["report_dirs"] as $report_dir)
 						{
-							$t = $report_dir . "/" . basename($file);
+							if (file_exists($report_dir . "/errors/" . ))
+							{
+								$t = $report_dir . "/errors/" . basename($file);
+							}
+							else
+							{
+								$t = $report_dir . "/" . basename($file);	
+							}
 							copy($file, $t);
 							$result[]=$t;
 						}
@@ -318,7 +345,7 @@
 		return $job;
 	}
 
-	function postSlackJobResults( $slack_hook, $job, $include_error_summary = false )
+	function postSlackJobResults( $slack_hook, $job )
 	{
 		$d=[];
 
@@ -329,34 +356,6 @@
 		{
 			$d[] = sprintf("_status info:_ %s",$job["status_info"]);
 		}
-
-		if (isset($job["input"]))
-		{
-			foreach ($job["input"] as $type => $files)
-			{
-				$d[] = sprintf("_%s_ data files:",$type);
-
-				foreach ($files as $file)
-				{
-					$d[] =sprintf("> %s",basename($file["path"]));
-				}
-			}
-		}
-
-		if (isset($job["delete"]))
-		{
-			foreach ($job["delete"] as $type => $files)
-			{
-				$d[] = sprintf("_%s_ delete files:",$type);
-
-				foreach ($files as $file)
-				{
-					$d[] =sprintf("> %s",basename($file["path"]));
-				}
-			}
-		}
-
-		$error_summary=[];
 
 		if (isset($job["validator"]))
 		{
@@ -370,11 +369,6 @@
 					number_format($val["results"]["invalid_json_docs"]),
 					number_format($val["results"]["broken_docs"])
 				);
-
-				if ($val["results"]["invalid_json_docs"]>0)
-				{
-					$error_summary[$type][]=$val["error_summary"];
-				}
 			}
 		}
 
@@ -392,13 +386,7 @@
 		}
 
 		$doc = implode("\n", $d);
-
-		if ($include_error_summary && !empty($error_summary))
-		{
-			$doc = $doc . "\n\n" . sprintf("error summary:\n```%s```",print_r($error_summary,true)). "\n";
-		}
-
-		$doc = $doc . "\n" . sprintf("_---validator job %s report end_",$job["id"]) ;
+		$doc = $doc . "\n" . sprintf("_---validator report end %s_",$job["id"]) ;
 
 		return postHttpDocument( json_encode([ "text" => $doc]), $slack_hook );
 	}

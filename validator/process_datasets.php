@@ -29,6 +29,7 @@
 	*/
 
 	$suppress_slack_posts = isset($_ENV["SLACK_ENABLED"]) ? $_ENV["SLACK_ENABLED"]==0 : false;
+	$suppress_log_server_feedback = true;
 	$slack_hook = isset($_ENV["SLACK_WEBHOOK"]) ? $_ENV["SLACK_WEBHOOK"] : null;
 	$log_server_address = isset($_ENV["logserver"]) ? $_ENV["logserver"] : null;
 	$preprocessor_job_folder = isset($_ENV["jobfolder"]) ? $_ENV["jobfolder"] : null;
@@ -125,7 +126,7 @@
 			$job["status_info"]=$status_info;
 		}
 
-		$job["validator_client_error_files"]=moveErrorFilesToReportDir($job);
+		$job["validator_client_error_files"] = moveErrorFilesToReportDir($job);
 
 		$reports=writeClientReport($job);
 		$job["validator_client_reports"]=$reports;
@@ -134,14 +135,21 @@
 		storeUpdatedJobFile( $job );
 		echo "wrote " , $job["dataset_filename"] , "\n";
 
-		if (!is_null($log_server_address))
+		if (!$suppress_log_server_feedback)
 		{
-			putValidationLog( $job, $log_server_address );
-			echo "put validation log to server" , "\n";
-		}
+			if (!is_null($log_server_address))
+			{
+				putValidationLog( $job, $log_server_address );
+				echo "put validation log to server" , "\n";
+			}
+			else
+			{
+				echo sprintf("error: log server address missing from ENV"), "\n";
+			}
+		}	
 		else
 		{
-			echo "skipped putting validation log to server", "\n";
+			echo sprintf("log server feedback suppressed"), "\n";
 		}
 
 		if ($job["status"]=="validated" && !is_null($preprocessor_job_folder) && !is_null($preprocessor_file_folder))
@@ -174,7 +182,7 @@
 		{
 			if (!is_null($slack_hook))
 			{
-				postSlackJobResults( $slack_hook, $job, true );
+				postSlackJobResults( $slack_hook, $job );
 			}
 			else
 			{

@@ -109,16 +109,15 @@ class JsonValidator {
 
         $tstamp = strftime("%Y%m%d-%H%M%S");
 
-        $this->save_file = $this->save_file_basename . '-' . $tstamp . '--%03s.json';
-        $this->save_file_broken = $this->save_file_basename . '-' . $tstamp . '--broken--%03s.json';
-        $this->save_file_invalid = $this->save_file_basename . '-' . $tstamp . '--invalid--%03s.json';
-        $this->error_file = $this->save_file_basename . '-' . $tstamp . '--errors--%03s.json';
+        $this->save_file = $this->save_file_basename . '-' . $tstamp . '--%03s.jsonl';
+        $this->save_file_broken = $this->save_file_basename . '-' . $tstamp . '--broken--%03s.txt';
+        $this->save_file_invalid = $this->save_file_basename . '-' . $tstamp . '--invalid--%03s.jsonl';
+        $this->error_file = $this->save_file_basename . '-' . $tstamp . '--errors--%03s.jsonl';
         $this->non_unique_id_sample_file = $this->save_file_basename . '-' . $tstamp . '--non_unique_ids_sample.csv';
         $this->error_summary_file = $this->save_file_basename . '-' . $tstamp . '--error-summary.json';
         $this->export_ids_file_tpl = $this->save_file_basename . '-' . $tstamp . '--ids-%s.csv';
 
         $this->sqlite_path = sprintf($this->sqlite_path,$tstamp);
-
         $this->max_outfile_length = self::LINES_PER_SYSTEM_OUT_FILE;
 	}
 
