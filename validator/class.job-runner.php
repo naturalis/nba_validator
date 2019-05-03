@@ -430,11 +430,11 @@
 					];
 
 				$this->_feedback(sprintf("> %s:%s validation summary", $this->job["data_supplier"], $this->type));
-				$this->_feedback(sprintf("> files;lines;errors: %s;%s;%s",
+				$this->_feedback(sprintf("> files; lines; errors: %s; %s; %s",
 					number_format($validator_results["files_read"]),
 					number_format($validator_results["lines_read"]),
 					number_format($validator_results["errors"])));
-				$this->_feedback( sprintf("> valid docs;invalid;broken: %s;%s;%s",
+				$this->_feedback( sprintf("> valid docs; invalid; broken: %s; %s; %s",
 					number_format($validator_results["valid_json_docs"]),
 					number_format($validator_results["invalid_json_docs"]),
 					number_format($validator_results["broken_docs"])));
