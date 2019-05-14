@@ -1109,7 +1109,10 @@ class JsonValidator {
 			{
 				$this->output_files['ids'][]=$save_file;
 			}
+
+			$this->_feedback(sprintf("wrote non-unqiue ID's to %s",$save_file));
 		}
+
     }
 
 	private function _checkSourceSystemDefaults()
