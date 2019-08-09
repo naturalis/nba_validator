@@ -396,6 +396,10 @@
 
 			$this->processed_input_files = 0;
 
+
+$this->total_valid_docs = 0;
+$this->total_not_valid_docs = 0;
+
 			foreach($this->job["input"] as $type => $files)
 			{
 				$this->_feedback(sprintf("processing %s",$type));
@@ -438,6 +442,13 @@
 					number_format($validator_results["valid_json_docs"]),
 					number_format($validator_results["invalid_json_docs"]),
 					number_format($validator_results["broken_docs"])));
+
+$this->total_valid_docs += $validator_results["valid_json_docs"];
+$this->total_not_valid_docs += ($validator_results["broken_docs"] + $validator_results["invalid_json_docs"]);
+
+$pct = ($this->total_not_valid_docs / $this->total_valid_docs) * 100;
+
+$this->_feedback( sprintf("%s %s %s",$this->total_valid_docs,$this->total_not_valid_docs,$pct) );
 
 				$this->processed_input_files++;
 			}
