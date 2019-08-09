@@ -97,6 +97,8 @@
 				$job_runner->run() is running, or it will be ignored by other, parallel
 				processes. --> we should do this in the process, once a slice to 
 				process has been selected (or none is available), as a sort of lock out.
+
+				must also implement _checkGlobalFailureConditions()
 			*/
 			$status="validated";
 		} 
@@ -104,7 +106,7 @@
 		{
 			$status="failed validation";
 			$status_info=$e->getMessage();
-			echo sprintf("aborting job %s: %s\n",$job["id"],$status_info);
+			echo sprintf("!!! ABORTING JOB %s: %s\n",$job["id"],$status_info);
 		}
 
 		$job_runner->archiveOriginalFiles();

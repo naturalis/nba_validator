@@ -40,6 +40,7 @@
 			$this->_checkConfigFile();
 			$this->_readConfig();
 			$this->_checkNumberOfLines();
+			$this->_setGlobalFailPercentage();
 			$this->_runValidator();
 		}
 
@@ -361,6 +362,12 @@
 			return $files;
 		}
 
+		private function _setGlobalFailPercentage()
+		{
+			$this->globalFailPercentage = $this->cfg["settings"]["global_fail_percentage"] ?? -1;
+			$this->_feedback( $this->globalFailPercentage==-1 ? "no global fail percentage set" : sprintf("global fail percentage set at %s%%",$this->globalFailPercentage) );
+		}
+
 		private function _runValidator()
 		{
 			if ($this->job["use_parallel_processing"]==true)
@@ -395,11 +402,8 @@
 			$this->_feedback("using serial processing");
 
 			$this->processed_input_files = 0;
-
-print_r($this->cfg);
-
-$this->total_valid_docs = 0;
-$this->total_not_valid_docs = 0;
+			$this->total_valid_docs = 0;
+			$this->total_not_valid_docs = 0;
 
 			foreach($this->job["input"] as $type => $files)
 			{
@@ -434,32 +438,53 @@ $this->total_not_valid_docs = 0;
 						"double_ids" => $this->validator->getDoubleIdFilePath(),
 					];
 
-				$this->_feedback(sprintf("> %s:%s validation summary", $this->job["data_supplier"], $this->type));
-				$this->_feedback(sprintf("> files; lines; errors: %s; %s; %s",
+				$this->_feedback(sprintf(" 🞄 %s/%s validation summary", $this->job["data_supplier"], $this->type));
+
+				$this->_feedback(sprintf(" 🞄 files; lines: %s; %s",
 					number_format($validator_results["files_read"]),
-					number_format($validator_results["lines_read"]),
-					number_format($validator_results["errors"])));
-				$this->_feedback( sprintf("> valid docs; invalid; broken: %s; %s; %s",
+					number_format($validator_results["lines_read"])));
+
+				$this->_feedback( sprintf(" 🞄 valid docs; invalid; broken: %s; %s; %s",
 					number_format($validator_results["valid_json_docs"]),
 					number_format($validator_results["invalid_json_docs"]),
 					number_format($validator_results["broken_docs"])));
 
-$this->total_valid_docs += $validator_results["valid_json_docs"];
-$this->total_not_valid_docs += ($validator_results["broken_docs"] + $validator_results["invalid_json_docs"]);
-
-$pct = ($this->total_not_valid_docs / $this->total_valid_docs) * 100;
-
-$this->_feedback( sprintf("%s %s %s",$this->total_valid_docs,$this->total_not_valid_docs,$pct) );
-
+				$this->total_valid_docs += $validator_results["valid_json_docs"];
+				$this->total_not_valid_docs += ($validator_results["broken_docs"] + $validator_results["invalid_json_docs"]);
 				$this->processed_input_files++;
+
+				$this->_feedback( sprintf("processed %s of %s files (failed %s%%) ",$this->processed_input_files,count($this->job["input"]),$this->_getGlobalFailedPercentage()));
+
 			}
 
 			if ($this->processed_input_files==0)
 			{
 				$this->_feedback( "no data files were validated" );
 			}
+			else
+			{
+				$this->_checkGlobalFailureConditions();
+			}
 		}
 
+
+		private function _getGlobalFailedPercentage()
+		{
+			return round(($this->total_not_valid_docs / $this->total_valid_docs) * 100,2);
+		}
+
+		private function _checkGlobalFailureConditions()
+		{
+			if ($this->globalFailPercentage>=0 && $this->_getGlobalFailedPercentage() >= $this->globalFailPercentage)
+			{
+				throw new Exception(sprintf("validation of %s%% of documents in job failed (threshold: %s%%)",$this->_getGlobalFailedPercentage(),$this->globalFailPercentage));
+			}
+		}
+
+		/* 
+			** work in progress **
+			must also implement _checkGlobalFailureConditions()
+		*/
 		private function _runValidatorParallelly()
 		{
 			$this->_feedback(sprintf("using parallel processing (%s)",$this->job["slicing"]["id"]));
