@@ -50,7 +50,7 @@
 
 		public function archiveOriginalFiles()
 		{
-			if (!isset($this->cfg["settings"]["archive_dir"]) || !file_exists($this->cfg["settings"]["archive_dir"]))
+			if (!isset(["settings"]["archive_dir"]) || !file_exists($this->cfg["settings"]["archive_dir"]))
 			{
 				$archive_dir = sys_get_temp_dir();
 			}
@@ -396,6 +396,7 @@
 
 			$this->processed_input_files = 0;
 
+print_r($this->cfg);
 
 $this->total_valid_docs = 0;
 $this->total_not_valid_docs = 0;
