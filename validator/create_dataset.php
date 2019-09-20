@@ -21,8 +21,8 @@
 		$force_data_replace = array_key_exists("force_data_replace",@getopt("",["force_data_replace"]));
 		$use_parallel_processing = array_key_exists("parallel_processing",@getopt("",["parallel_processing"]));
 
-		$repoPath = $_ENV["repository"];
-		$tmpPath = $_ENV["tmp_path"];
+		$repoPath = getenv("repository");
+		$tmpPath = getenv("tmp_path");
 
 		if (empty($repoPath)) throw new Exception("no repo path specified");
 
@@ -98,7 +98,7 @@
 		$d->setOutputDirectory($repoPath);
 		$d->setReportDirectory($cfg["settings"]["report_dir"]);
 
-		if (isset($tmpPath))
+		if (!empty($tmpPath))
 		{
 			$d->setTmpDirectory($tmpPath);
 		}

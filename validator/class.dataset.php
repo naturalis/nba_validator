@@ -24,6 +24,7 @@
 		const FILE_UPLOAD_READY = "upload_ready";
 		const FILE_PROCESSING = "processing";
 		const INDEX_FILE_MASK = "index-*.txt";
+		const METADATA_FILE_MASK = "metadata*.jsonl";
 		const DELETE_FILE_MASK = "delete*-*.txt";
 		const DATA_TYPES = ["specimen","multimedia","taxon","geo"];
 		const INDEX_FILE_FIELD_SEP = "\t";
@@ -37,11 +38,13 @@
 			$this->_readFlags();
 			$this->_setProcessStatus();
 			$this->_getIndexFile();
+			$this->_getMetaDataFile();
 			$this->_getJsonFiles();
 			$this->_getDeleteFiles();
 			$this->_checkIfFilesArePresent();
 			// $this->_getFileCreationTimes();
 			$this->_readIndexFile();
+			$this->_setImportDate();
 			$this->_generateHash();
 			$this->_makeSet();
 			$this->_writeSet();
@@ -187,7 +190,6 @@
 			return $this->messages;
 		}
 
-
 		private function _preliminaries()
 		{
 			if (count($this->dirs)==0)
@@ -252,13 +254,28 @@
 						throw new Exception(sprintf("multiple index files found in %s",$dir["path"]));
 					}
 					else
-					if (count($f)==1)
 					{
-						$this->dirs[$key]["index_file"]=$f[0];
+						$this->dirs[$key]["index_file"] = ( count($f)==1 ? $f[0] : false );
+					}
+				}
+			}
+		}
+
+		private function _getMetaDataFile()
+		{
+			$t=&$this->dirs;
+			foreach ($t as $key => $dir) 
+			{
+				if ($dir["do_process"])
+				{
+					$f=glob($dir["path"] . "/" . self::METADATA_FILE_MASK);
+					if (count($f)>1)
+					{
+						throw new Exception(sprintf("multiple metadata files found in %s",$dir["path"]));
 					}
 					else
 					{
-						$this->dirs[$key]["index_file"]=false;
+						$this->dirs[$key]["metadata_file"] = ( count($f)==1 ? $f[0] : false );
 					}
 				}
 			}
@@ -343,7 +360,58 @@
 				}
 			}
 		}
-		
+
+		private function _setImportDate()
+		{
+			foreach($this->dirs as $key => $dir)
+			{
+				$export_date = null;
+				$source = null;
+
+				if(isset($dir["metadata_file"]) && $dir["metadata_file"]!=false)
+				{
+					$data = json_decode(file_get_contents($dir["metadata_file"]),true);
+					$export_date = $data["export_date"] ?? null;
+					$source = "metadata";
+				}
+
+				if (is_null($export_date) && isset($dir["json"][0]))
+				{
+					$basename = basename($dir["json"][0]);
+
+					foreach (
+						[
+							'/20[0-9]{6}\-[0-9]{2}\-[0-9]{2}/', // a cheery wave to all 22nd century coders!
+							'/[0-9]{4}\-[0-9]{2}\-[0-9]{2}/',
+							'/[0-9]{2}\-[0-9]{2}\-[0-9]{4}/',
+							'/20[0-9]{6}/',
+						] as $reg)
+					{
+						preg_match($reg,$basename,$matches);
+
+						if (count($matches)>0)
+						{
+							$export_date = $matches[0];
+							$source = sprintf("filename (first file: %s)",$basename);
+							break;
+						}
+					}
+				}
+
+				if (isset($export_date) && !empty(strtotime($export_date)))
+				{
+					$export_date = date("Y-m-d",strtotime($export_date));
+				}
+				else
+				{
+					$export_date = date("Y-m-d",$this->timestamp);
+					$source = "none (jobfile date)";
+				}
+
+				$this->dirs[$key]["export_date"] = [ "date" => $export_date, "source" => $source ];
+			}
+		}
+
 		private function _getPreRenameFilename( $current_file_name )
 		{
 
@@ -443,6 +511,7 @@
 				}
 
 				$indices[$dir["type"]]=$dir["index_file"];
+				$this->set["export_date"][$dir["type"]] = $dir["export_date"];
 			}
 			
 			$this->set["input"] = $files;
