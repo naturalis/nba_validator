@@ -246,7 +246,8 @@
 			$this->validator = new JsonValidator([
 				'output_dir' =>	$this->outdir,
 				'schema_file' => $this->cfg[$this->type]["schema_file"],
-				'save_file_basename' => $this->cfg[$this->type]["save_file_basename"]
+				'save_file_basename' => $this->cfg[$this->type]["save_file_basename"],
+				'job_id' => $this->job["id"]
 			]);
 
 			if (isset($this->cfg[$this->type]["extra_schema"]))
