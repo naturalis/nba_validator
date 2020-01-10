@@ -13,7 +13,6 @@
 	include("class.input-prepare.php");	
 	include('functions.php');
 
-
 	$cfg = getopt("",["config:"]);
 
 	try

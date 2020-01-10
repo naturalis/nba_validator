@@ -98,31 +98,32 @@ class JsonValidator {
 		 	}
 		}
 
-		if (isset($p['save_file_basename']))
-		{
-			$this->save_file_basename = $p['save_file_basename'];
-		} 
-		else
-		{
-			$this->save_file_basename = 'validation-output';
-		}
-
 		if (isset($p['job_id']))
 		{
-			$job_id = $p['job_id'];
+			$this->job_id = $p['job_id'];
 		} 
 		else
 		{
-			$job_id = strftime("%Y%m%d-%H%M%S");
+			$this->job_id = strftime("%Y%m%d-%H%M%S");
+
+			if (isset($p['data_supplier']))
+			{
+				$this->job_id = $p['data_supplier'] . '-' . $this->job_id;
+			}
 		}
 
-        $this->save_file = $this->save_file_basename . '-' . $job_id . '--%03s.jsonl';
-        $this->save_file_broken = $this->save_file_basename . '-' . $job_id . '--broken--%03s.txt';
-        $this->save_file_invalid = $this->save_file_basename . '-' . $job_id . '--invalid--%03s.jsonl';
-        $this->error_file = $this->save_file_basename . '-' . $job_id . '--errors--%03s.jsonl';
-        $this->non_unique_id_sample_file = $this->save_file_basename . '-' . $job_id . '--non_unique_ids_sample.csv';
-        $this->error_summary_file = $this->save_file_basename . '-' . $job_id . '--error-summary.json';
-        $this->export_ids_file_tpl = $this->save_file_basename . '-' . $job_id . '--ids-%s.csv';
+		if (isset($p['data_type']))
+		{
+			$this->job_id = $this->job_id . '-' . $p['data_type'];
+		} 
+
+        $this->save_file = $this->job_id . '--%03s.jsonl';
+        $this->save_file_broken = $this->job_id . '--broken--%03s.txt';
+        $this->save_file_invalid = $this->job_id . '--invalid--%03s.jsonl';
+        $this->error_file = $this->job_id . '--errors--%03s.jsonl';
+        $this->non_unique_id_sample_file = $this->job_id . '--non_unique_ids_sample.csv';
+        $this->error_summary_file = $this->job_id . '--error-summary.json';
+        $this->export_ids_file_tpl = $this->job_id . '--ids-%s.csv';
 
         $this->sqlite_path = sprintf($this->sqlite_path,$job_id);
         $this->max_outfile_length = self::LINES_PER_SYSTEM_OUT_FILE;
@@ -1204,7 +1205,7 @@ class JsonValidator {
 				'error_type' => $error['error_type'],
 				'error_message' => $error['error_message'],
 				'element_path' => $element_path,
-				'cause' => $cause,
+				'cause (first occurrence)' => $cause,
 				'id (first occurrence)' => $error['id'],
 				'file (first occurrence)' => $error['file'],
 				'line (first occurrence)' => $error['line'],
