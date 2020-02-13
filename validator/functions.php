@@ -89,6 +89,7 @@
 			"id" => $job["id"],
 			"data_supplier" => $job["data_supplier"],
 			"date" => $job["date"],
+			"notes" => $job["notes"],
 			"status" => $job["status"],
 			"validator_time_taken" => $job["validator_time_taken"],
 		];
