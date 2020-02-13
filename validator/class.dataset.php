@@ -44,7 +44,7 @@
 			$this->_checkIfFilesArePresent();
 			// $this->_getFileCreationTimes();
 			$this->_readIndexFile();
-			$this->_setImportDate();
+			$this->_setImportDateAndNotes();
 			$this->_generateHash();
 			$this->_makeSet();
 			$this->_writeSet();
@@ -361,18 +361,20 @@
 			}
 		}
 
-		private function _setImportDate()
+		private function _setImportDateAndNotes()
 		{
 			foreach($this->dirs as $key => $dir)
 			{
 				$export_date = null;
 				$source = null;
+				$notes = null;
 
 				if(isset($dir["metadata_file"]) && $dir["metadata_file"]!=false)
 				{
 					$data = json_decode(file_get_contents($dir["metadata_file"]),true);
 					$export_date = $data["export_date"] ?? null;
-					$source = "metadata";
+					$notes = $data["notes"] ?? null;
+					$source = "metadata";						
 				}
 
 				if (is_null($export_date) && isset($dir["json"][0]))
@@ -381,10 +383,9 @@
 
 					foreach (
 						[
-							'/20[0-9]{6}\-[0-9]{2}\-[0-9]{2}/', // a cheery wave to all 22nd century coders!
-							'/[0-9]{4}\-[0-9]{2}\-[0-9]{2}/',
-							'/[0-9]{2}\-[0-9]{2}\-[0-9]{4}/',
-							'/20[0-9]{6}/',
+                            '/2[0-9]{3}\-[0-9]{2}\-[0-9]{2}/', // a cheery wave to 22nd century coders!
+                            '/2[0-9]{7}/',
+                            '/[0-9]{2}\-[0-9]{2}\-2[0-9]{3}/',
 						] as $reg)
 					{
 						preg_match($reg,$basename,$matches);
@@ -398,7 +399,7 @@
 					}
 				}
 
-				if (isset($export_date) && !empty(strtotime($export_date)))
+				if (isset($export_date) && strtotime($export_date)!==false)
 				{
 					$export_date = date("Y-m-d",strtotime($export_date));
 				}
@@ -409,12 +410,12 @@
 				}
 
 				$this->dirs[$key]["export_date"] = [ "date" => $export_date, "source" => $source ];
+				$this->dirs[$key]["notes"] = $notes;
 			}
 		}
 
 		private function _getPreRenameFilename( $current_file_name )
 		{
-
 			foreach ((array)$this->changed_file_names as $val)
 			{
 				if ($val["new"]==$current_file_name)
@@ -511,7 +512,9 @@
 				}
 
 				$indices[$dir["type"]]=$dir["index_file"];
+
 				$this->set["export_date"][$dir["type"]] = $dir["export_date"];
+				$this->set["notes"][$dir["type"]] = $dir["notes"];
 			}
 			
 			$this->set["input"] = $files;
