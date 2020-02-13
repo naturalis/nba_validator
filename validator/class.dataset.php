@@ -24,8 +24,9 @@
 		const FILE_UPLOAD_READY = "upload_ready";
 		const FILE_PROCESSING = "processing";
 		const INDEX_FILE_MASK = "index-*.txt";
-		const METADATA_FILE_MASK = "metadata*.jsonl";
 		const DELETE_FILE_MASK = "delete*-*.txt";
+		const METADATA_FILE_MASK = "metadata*.json";
+		const METADATA_FILE_REGEX = "/^metadata[^\.]*\.json$/";
 		const DATA_TYPES = ["specimen","multimedia","taxon","geo"];
 		const INDEX_FILE_FIELD_SEP = "\t";
 		
@@ -269,6 +270,7 @@
 				if ($dir["do_process"])
 				{
 					$f=glob($dir["path"] . "/" . self::METADATA_FILE_MASK);
+
 					if (count($f)>1)
 					{
 						throw new Exception(sprintf("multiple metadata files found in %s",$dir["path"]));
@@ -633,7 +635,7 @@
 			{
 				while (false !== ($entry = readdir($handle)))
 				{
-					if (preg_match('/\.(' . implode('|',$extensions) .')$/', $entry))
+                    if (preg_match('/\.(' . implode('|',$extensions) .')$/', $entry) and (!preg_match(self::METADATA_FILE_REGEX,$entry)))
 					{
 						$files[] = rtrim($file_path, "/") . "/" . $entry;
 					}
