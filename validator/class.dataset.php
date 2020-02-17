@@ -25,8 +25,7 @@
 		const FILE_PROCESSING = "processing";
 		const INDEX_FILE_MASK = "index-*.txt";
 		const DELETE_FILE_MASK = "delete*-*.txt";
-		const METADATA_FILE_MASK = "metadata*.json";
-		const METADATA_FILE_REGEX = "/^metadata[^\.]*\.json$/";
+		const METADATA_FILE_MASK = "metadata-%s.json";
 		const DATA_TYPES = ["specimen","multimedia","taxon","geo"];
 		const INDEX_FILE_FIELD_SEP = "\t";
 		
@@ -39,7 +38,7 @@
 			$this->_readFlags();
 			$this->_setProcessStatus();
 			$this->_getIndexFile();
-			$this->_getMetaDataFile();
+			$this->_getMetaDataFiles();
 			$this->_getJsonFiles();
 			$this->_getDeleteFiles();
 			$this->_checkIfFilesArePresent();
@@ -262,23 +261,15 @@
 			}
 		}
 
-		private function _getMetaDataFile()
+		private function _getMetaDataFiles()
 		{
 			$t=&$this->dirs;
 			foreach ($t as $key => $dir) 
 			{
 				if ($dir["do_process"])
 				{
-					$f=glob($dir["path"] . "/" . self::METADATA_FILE_MASK);
-
-					if (count($f)>1)
-					{
-						throw new Exception(sprintf("multiple metadata files found in %s",$dir["path"]));
-					}
-					else
-					{
-						$this->dirs[$key]["metadata_file"] = ( count($f)==1 ? $f[0] : false );
-					}
+					$f=glob($dir["path"] . "/" . sprintf(self::METADATA_FILE_MASK,$dir["type"]));
+					$this->dirs[$key]["metadata_file"] = ( count($f)==1 ? $f[0] : false );
 				}
 			}
 		}
@@ -289,6 +280,7 @@
 			foreach ($t as $key => $dir) 
 			{
 				$files = $this->getFileList($dir["path"],self::JSON_EXTENSIONS);
+				$files = array_diff($files, $dir["metadata_file"] ? [ $dir["metadata_file"] ] : []);
 
 				if ($dir["do_process"])
 				{
@@ -635,7 +627,7 @@
 			{
 				while (false !== ($entry = readdir($handle)))
 				{
-                    if (preg_match('/\.(' . implode('|',$extensions) .')$/', $entry) and (!preg_match(self::METADATA_FILE_REGEX,$entry)))
+                    if (preg_match('/\.(' . implode('|',$extensions) .')$/', $entry))
 					{
 						$files[] = rtrim($file_path, "/") . "/" . $entry;
 					}

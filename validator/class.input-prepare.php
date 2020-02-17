@@ -10,6 +10,7 @@ class inputPrepare {
 	const FILE_PROCESSING = "processing";
 	const ARCHIVE_EXTENSIONS = ["gz","zip","tar"];
 	const PROCESSABLE_EXTENSIONS = ["json","jsonl","ndjson","txt"];
+	const METADATA_FILE_REGEX = "/^metadata[^\.]*\.json$/";
 
 	public function run()
 	{
@@ -122,6 +123,11 @@ class inputPrepare {
 			{
 				$ext=strtolower(pathinfo($file, PATHINFO_EXTENSION));
 
+				if (preg_match(self::METADATA_FILE_REGEX,basename($file)))
+				{
+					// metadata file -> leave unchanged
+				}
+				else
 				if ($ext=="json")
 				{
 					if ($this->_fileIsJsonl($file))
@@ -157,7 +163,7 @@ class inputPrepare {
 					}			
 					else
 					{
-						// assuming file with deleted lines
+						// assuming index file of file with deleted unitID's
 					}
 				}
 			}
