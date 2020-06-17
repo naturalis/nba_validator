@@ -15,10 +15,14 @@
 		private $is_incremental;
 		private $present_datatypes=[];
 		private $messages=[];
-		private $use_parallel_processing=false;
 
 		private $always_process=false;
 		private $force_data_replace=false;
+		private $is_test_run=false;
+
+		private $job_id_override;
+		private $job_date_override;
+		private $inherited_metadata=[];
 
 		const JSON_EXTENSIONS = ["json","JSON","jsonl","JSONL","ndjson","NDJSON"];
 		const FILE_UPLOAD_READY = "upload_ready";
@@ -38,7 +42,7 @@
 			$this->_readFlags();
 			$this->_setProcessStatus();
 			$this->_getIndexFile();
-			$this->_getMetaDataFiles();
+			$this->_getMetaDataFile();
 			$this->_getJsonFiles();
 			$this->_getDeleteFiles();
 			$this->_checkIfFilesArePresent();
@@ -137,6 +141,19 @@
 			}
 		}
 
+		public function setIsTestRun($is_test_run)
+		{
+			if (is_bool($is_test_run))
+			{
+				$this->is_test_run = $is_test_run;
+			}
+		}
+
+		public function addInheritedMetadata($source,$name_value)
+		{
+			$this->inherited_metadata[$source][] = $name_value;
+		}
+
 		public function getDatasetFilename()
 		{
 			return $this->dataset_filename;
@@ -177,17 +194,19 @@
 			$this->changed_file_names=$index;
 		}
 
-		public function setParallelProcessing( $state )
-		{
-			if (is_bool($state))
-			{
-				$this->use_parallel_processing=$state;
-			}
-		}
-
 		public function getMessages()
 		{
 			return $this->messages;
+		}
+
+		public function setJobIdOverride($job_id_override)
+		{
+			$this->job_id_override = $job_id_override;
+		}
+
+		public function setJobDateOverride($job_date_override)
+		{
+			$this->job_date_override = $job_date_override;
 		}
 
 		private function _preliminaries()
@@ -261,7 +280,7 @@
 			}
 		}
 
-		private function _getMetaDataFiles()
+		private function _getMetaDataFile()
 		{
 			$t=&$this->dirs;
 			foreach ($t as $key => $dir) 
@@ -279,17 +298,17 @@
 			$t=&$this->dirs;
 			foreach ($t as $key => $dir) 
 			{
-				$files = $this->getFileList($dir["path"],self::JSON_EXTENSIONS);
-				$files = array_diff($files, $dir["metadata_file"] ? [ $dir["metadata_file"] ] : []);
-
 				if ($dir["do_process"])
 				{
+					$files = $this->getFileList($dir["path"],self::JSON_EXTENSIONS);
+					$files = array_diff($files, $dir["metadata_file"] ? [ $dir["metadata_file"] ] : []);
+
 					// $this->dirs[$key]["json"]=glob($dir["path"]."/*.{".implode(",",self::JSON_EXTENSIONS)."}", GLOB_BRACE);
 					$this->dirs[$key]["json"]=$files;
 					$this->files_are_present = $this->files_are_present ? true : count($this->dirs[$key]["json"])>0;
-				}
 
-				$this->addMessage(sprintf("%s, %s json file(s)", $dir["path"], count($files)));
+					$this->addMessage(sprintf("%s, %s json file(s)", $dir["path"], count($files)));
+				}
 			}
 		}
 
@@ -447,14 +466,30 @@
 		{
 			$t = DateTime::createFromFormat('U.u', $this->timestamp);
 			
-			$this->set["id"] = implode("-",
-                          [strtolower($this->data_supplier_code),$t->format("Y-m-d-Hisv"),$this->hash_val]);
+			if (isset($this->job_id_override))
+			{
+				$this->set["id"] = $this->job_id_override;
+			}
+			else
+			{
+				$this->set["id"] = implode("-",
+					[strtolower($this->data_supplier_code),$t->format("Y-m-d-Hisv"),$this->hash_val]);
+			}
+
+			if (isset($this->job_date_override))
+			{
+				$this->set["date"] = $this->job_date_override;
+			}
+			else
+			{
+				$this->set["date"] = $t->format("c");
+			}
+
 			$this->set["data_supplier"] = $this->data_supplier_code;
-			$this->set["date"] = $t->format("c");
 			$this->set["status"] = "pending";
 			$this->set["supplier_config_file"] = $this->supplier_config_file;
 			$this->set["tabula_rasa"] = $this->force_data_replace;
-			$this->set["use_parallel_processing"] = $this->use_parallel_processing;
+			$this->set["test_run"] = $this->is_test_run;
 
 			foreach($this->present_datatypes as $type)
 			{
@@ -467,6 +502,7 @@
 			$files = [];
 			$deletes = [];
 			$indices = [];
+			$metadata_files = [];
 
 			foreach($this->present_datatypes as $type)
 			{
@@ -506,6 +542,7 @@
 				}
 
 				$indices[$dir["type"]]=$dir["index_file"];
+				$metadata_files[$dir["type"]]=$dir["metadata_file"];
 
 				$this->set["export_date"][$dir["type"]] = $dir["export_date"];
 				$this->set["notes"][$dir["type"]] = $dir["notes"];
@@ -514,6 +551,8 @@
 			$this->set["input"] = $files;
 			$this->set["delete"] = $deletes;
 			$this->set["indices"] = $indices;
+			$this->set["metadata_files"] = $metadata_files;
+			$this->set["inherited_metadata"] = $this->inherited_metadata;
 		}
 
 		private function _writeSet()
@@ -581,15 +620,16 @@
 		{
 			$t=&$this->set;
 
-			foreach(["input","delete","indices"] as $docType)
+			foreach(["input","delete","indices","metadata_files"] as $docType)
 			{
 				if (isset($t[$docType][$dataType]) )
 				{
 					if (is_array($t[$docType][$dataType]))
-					{						
+					{
 						foreach ($t[$docType][$dataType] as $key => $val)
 						{
 							$tmp=$this->_makeTmpFilename($this->set["id"], $dataType, $docType, $val['path_hash']);
+
 							if ($copyNotMove ? copy($val['path'], $tmp) : rename($val['path'], $tmp))
 							{
 								$this->set[$docType][$dataType][$key]["tmp_path"] = $tmp;
@@ -606,6 +646,7 @@
 						if ($f==false) continue;
 
 						$tmp=$this->_makeTmpFilename($this->set["id"], $dataType, $docType, md5($f));
+
 						if ($copyNotMove ? copy($f, $tmp) : rename($f, $tmp))
 						{
 							$this->set[$docType][$dataType]=[ "path" => $f, "tmp_path" => $tmp];

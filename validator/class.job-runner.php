@@ -11,6 +11,8 @@
 		private $exportIds=false;
 		private $ppdbWorksTopToBottom=true;
 		private $processed_input_files=0;
+		private $globalFailPercentage=-1;
+		private $isTestRun = false;
 
 		const READ_BUFFER_SIZE = 100000;
 		const INDEX_FILE_FIELD_SEP = "\t";
@@ -41,6 +43,7 @@
 			$this->_readConfig();
 			$this->_checkNumberOfLines();
 			$this->_setGlobalFailPercentage();
+			$this->_setIsTestRun();
 			$this->_runValidator();
 		}
 
@@ -248,7 +251,8 @@
 				'schema_file' => $this->cfg[$this->type]["schema_file"],
 				'data_type' => $this->type,
 				'data_supplier' => $this->job["data_supplier"],
-				'job_id' => $this->job["id"]
+				'job_id' => $this->job["id"],
+				'test_run' => $this->isTestRun
 			]);
 
 			if (isset($this->cfg[$this->type]["extra_schema"]))
@@ -370,39 +374,19 @@
 			$this->_feedback( $this->globalFailPercentage==-1 ? "no global fail percentage set" : sprintf("global fail percentage set at %s%%",$this->globalFailPercentage) );
 		}
 
-		private function _runValidator()
+		private function _getGlobalFailedPercentage()
 		{
-			if ($this->job["use_parallel_processing"]==true)
-			{
-				$this->_runValidatorSerially();
-
- 				// safety
-				//$this->_runValidatorParallelly();
-
-				/*
-					TODO:
-					coming in, the overall slicing status ($this->job["slicing"]["status"]) is 
-					'pending'. when 'pending', _runValidatorParallelly() each time takes one
-					slice, runs it through the validator, and sets the slice's status to
-					'processing', then 'processed'. once all slices of a job have the status
-					'processed', the overall status ($this->job["slicing"]["status"]) should
-					be set to 'processed'. process_datasets.php should look at this every time
-					$job_runner->run() returns, and adjust the overall job status accordingly.
-
-					also, re-set the overall job status to pending once a slice to process has
-					been selected (or none is available x2).
-				*/
-			}
-			else
-			{
-				$this->_runValidatorSerially();
-			}			
+			return round(($this->total_not_valid_docs / $this->total_valid_docs) * 100,2);
 		}
 
-		private function _runValidatorSerially()
+		private function _setIsTestRun()
 		{
-			$this->_feedback("using serial processing");
+			$this->isTestRun = isset($this->job["test_run"]) && is_bool($this->job["test_run"]) ? $this->job["test_run"] : false;
+			$this->_feedback( $this->isTestRun  ? "test run" : "not a test run" );
+		}
 
+		private function _runValidator()
+		{
 			$this->processed_input_files = 0;
 			$this->total_valid_docs = 0;
 			$this->total_not_valid_docs = 0;
@@ -469,108 +453,12 @@
 			}
 		}
 
-
-		private function _getGlobalFailedPercentage()
-		{
-			return round(($this->total_not_valid_docs / $this->total_valid_docs) * 100,2);
-		}
-
 		private function _checkGlobalFailureConditions()
 		{
 			if ($this->globalFailPercentage>=0 && $this->_getGlobalFailedPercentage() >= $this->globalFailPercentage)
 			{
 				throw new Exception(sprintf("validation of %s%% of documents in job failed (threshold: %s%%)",$this->_getGlobalFailedPercentage(),$this->globalFailPercentage));
 			}
-		}
-
-		/* 
-			** work in progress **
-			must also implement _checkGlobalFailureConditions()
-		*/
-		private function _runValidatorParallelly()
-		{
-			$this->_feedback(sprintf("using parallel processing (%s)",$this->job["slicing"]["id"]));
-
-			if ($this->job["slicing"]["status"]!="pending")
-			{
-				$this->_feedback(sprintf("nothing to validate: slicing status is '%s'",$this->job["slicing"]["status"]));
-				return;
-			}
-
-			foreach($this->job["slicing"]["input"] as $type => $slices)
-			{
-				$lowest_index=-1;
-				$slice_to_process=[];
-
-				foreach($slices as $key => $slice)
-				{
-					if ($slice["status"]=="pending")
-					{
-						foreach($slice["morsels"] as $morsel)
-						{
-							$morsel_index=-1;
-							if ($morsel_index==-1 || $morsel["index"]<$morsel_index)
-							{
-								$morsel_index = $morsel["index"];
-							}
-						}
-
-						if ($lowest_index==-1 || $morsel_index<$lowest_index)
-						{
-							$slice_to_process = $slice;
-							$type_to_slice = $type;
-							$slice_key = $key;
-							$lowest_index = $morsel_index;
-						}
-					}
-				}
-
-				if ($lowest_index==-1)
-				{
-					$this->_feedback("nothing to validate: no slices with status 'pending'");
-					return;
-				}
-			}
-
-			$this->type = $type_to_slice;
-			
-			$this->job["slicing"]["input"][$this->type][$slice_key]["status"]="processing";
-			$this->_storeUpdatedJobFile( $this->job );
-
-			$this->_feedback(sprintf("processing %s, slice #%s",$this->type,$slice_to_process["index"]));
-
-			$this->validator_save_file_basename = 
-				$this->cfg[$this->type]["save_file_basename"] . 
-				sprintf($this->job["slicing"]["file_add"],$slice_to_process["index"]);
-
-			$this->_initValidator();
-
-			$this->validator->setTotalDocListLength( $slice_to_process["size"] );
-
-			foreach($slice_to_process["morsels"] as $morsel)
-			{
-				$file = new SplFileObject($morsel["path"]);
-				if (!$file->eof())
-				{
-					$file->seek($morsel["start"]);
-					for($i=0;$i<$morsel["size"];$i++)
-					{
-						$doc = $file->current();
-						$this->validator->addDocToValidate( $doc, $morsel["size"]+$i, $morsel["original_path"] );
-						$this->validator->runDocListValidation();
-						$file->next();
-					}
-				}
-			}
-
-			$this->validator->runDocListValidation( true );
-
-			$validator_results = $this->validator->getValidationOverview();
-
-			$this->job["slicing"]["input"][$this->type][$slice_key]["validator"] = $validator_results;
-			$this->job["slicing"]["input"][$this->type][$slice_key]["status"] = "processed";
-
-			$this->_storeUpdatedJobFile( $this->job );
 		}
 
 		private function _feedback( $msg )

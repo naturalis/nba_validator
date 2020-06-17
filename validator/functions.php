@@ -87,11 +87,12 @@
 		
 		$t["job"] = [
 			"id" => $job["id"],
+			"job_date" => $job["date"],
 			"data_supplier" => $job["data_supplier"],
-			"date" => $job["date"],
-			"notes" => $job["notes"],
-			"status" => $job["status"],
+			"data_supplier_export_date" => $job["export_date"],
+			"data_supplier_notes" => $job["notes"],
 			"validator_time_taken" => $job["validator_time_taken"],
+			"status" => $job["status"],
 		];
 
 		if (isset($job["status_info"]))
@@ -423,4 +424,24 @@
 
 		curl_close($ch);
 		return $r;
+	}
+
+	function rmDirRecursive($dir)
+	{
+
+	    $it = new RecursiveDirectoryIterator($dir, RecursiveDirectoryIterator::SKIP_DOTS);
+	    $files = new RecursiveIteratorIterator($it,
+	                 RecursiveIteratorIterator::CHILD_FIRST);
+	    foreach($files as $file)
+	    {
+	        if ($file->isDir())
+	        {
+	            rmdir($file->getRealPath());
+	        } 
+	        else
+	        {
+	            unlink($file->getRealPath());
+	        }
+	    }
+	    rmdir($dir);
 	}

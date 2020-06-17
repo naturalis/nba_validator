@@ -1,6 +1,19 @@
 <?php
 
 	/*
+		dry run
+
+
+		not archiving is default, write in jobfile
+
+		dry run is in job file,
+			make switchable as well / new or override
+
+
+
+	*/
+
+	/*
 
 		php create_dataset.php --config=/config/config.ini --force_data_replace
 
@@ -18,7 +31,6 @@
 	try
 	{
 		$force_data_replace = array_key_exists("force_data_replace",@getopt("",["force_data_replace"]));
-		$use_parallel_processing = array_key_exists("parallel_processing",@getopt("",["parallel_processing"]));
 
 		$repoPath = getenv("repository");
 		$tmpPath = getenv("tmp_path");
@@ -31,7 +43,6 @@
 		echo "config: " , $supplierConfigFile , "\n";
 		echo "repo: " , $repoPath , "\n";
 		echo "tabula rasa: " , ( $force_data_replace ? "y" : "n" ) , "\n";
-		echo "parallel processing: " , ( $use_parallel_processing ? "y" : "n" ) , "\n";
 
 		# inputPrepare: unpacks archives, renames files to valid extensions
 		$p = new inputPrepare;
@@ -62,7 +73,6 @@
 		$d = new dataSet;
 		$d->setChangedNames($changes);
 		$d->setForceDataReplace($force_data_replace);
-		$d->setParallelProcessing($use_parallel_processing);
 		$d->setDataSupplierCode($cfg["supplier_codes"]["source_system_code"]);
 		
 		if (isset($cfg["specimen"]) && $cfg["specimen"]["input_dir"])
