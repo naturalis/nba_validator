@@ -2,6 +2,7 @@
 
 	class dataSet
 	{
+		private $logClass;
 		private $dirs=[];
 		private $files_are_present=false;
 		private $hash_val="";
@@ -14,7 +15,6 @@
 		private $supplier_config_file="";
 		private $is_incremental;
 		private $present_datatypes=[];
-		private $messages=[];
 
 		private $always_process=false;
 		private $force_data_replace=false;
@@ -52,6 +52,11 @@
 			$this->_generateHash();
 			$this->_makeSet();
 			$this->_writeSet();
+		}
+
+		public function setLogClass($logClass)
+		{
+			$this->logClass = $logClass;
 		}
 
 		public function addInputDirectory( $dir, $dataType )
@@ -194,11 +199,6 @@
 			$this->changed_file_names=$index;
 		}
 
-		public function getMessages()
-		{
-			return $this->messages;
-		}
-
 		public function setJobIdOverride($job_id_override)
 		{
 			$this->job_id_override = $job_id_override;
@@ -244,8 +244,10 @@
 			{
 				$this->dirs[$key]["upload_ready"]=file_exists($dir["path"] . "/" . self::FILE_UPLOAD_READY);
 				$this->dirs[$key]["processing"]=file_exists($dir["path"] . "/" . self::FILE_PROCESSING);
-				$this->addMessage(sprintf("%s, %s: %s", $dir["path"], self::FILE_UPLOAD_READY,$this->dirs[$key]["upload_ready"] ? 'y' : 'n'));
-				$this->addMessage(sprintf("%s, %s: %s", $dir["path"], self::FILE_PROCESSING,$this->dirs[$key]["upload_ready"] ? 'y' : 'n'));
+				$this->logClass->info(
+					sprintf("%s, %s: %s", $dir["path"], self::FILE_UPLOAD_READY,$this->dirs[$key]["upload_ready"] ? 'y' : 'n'));
+				$this->logClass->info(
+					sprintf("%s, %s: %s", $dir["path"], self::FILE_PROCESSING,$this->dirs[$key]["upload_ready"] ? 'y' : 'n'));
 			}
 		}
 
@@ -255,7 +257,7 @@
 			foreach ($t as $key => $dir)
 			{
 				$this->dirs[$key]["do_process"]=($dir["upload_ready"] && !$dir["processing"]) || $this->always_process;
-				$this->addMessage(sprintf("do process %s? %s", $dir["path"], $this->dirs[$key]["do_process"] ? 'y' : 'n'));
+				$this->logClass->info(sprintf("do process %s? %s", $dir["path"], $this->dirs[$key]["do_process"] ? 'y' : 'n'));
 			}
 		}
 
@@ -307,7 +309,7 @@
 					$this->dirs[$key]["json"]=$files;
 					$this->files_are_present = $this->files_are_present ? true : count($this->dirs[$key]["json"])>0;
 
-					$this->addMessage(sprintf("%s, %s json file(s)", $dir["path"], count($files)));
+					$this->logClass->info(sprintf("%s, %s json file(s)", $dir["path"], count($files)));
 				}
 			}
 		}
@@ -325,7 +327,7 @@
 					$this->files_are_present = $this->files_are_present ? true : count($this->dirs[$key]["delete"])>0;
 				}
 
-				$this->addMessage(sprintf("%s, %s delete file(s)", $dir["path"], count($files)));
+				$this->logClass->info(sprintf("%s, %s delete file(s)", $dir["path"], count($files)));
 			}
 		}
 
@@ -677,11 +679,6 @@
 			}
 
 			return $files;
-		}
-
-		private function addMessage( $msg )
-		{
-			$this->messages[] = $msg;
 		}
 
 		private function _doSetReportDirectory( $dir )

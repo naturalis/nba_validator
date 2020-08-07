@@ -1,51 +1,41 @@
 <?php
 
 	/*
-		dry run
-
-
-		not archiving is default, write in jobfile
-
-		dry run is in job file,
-			make switchable as well / new or override
-
-
-
+		SUPPPLIER_CONFIG_FILE   // iets.ini *
+		FORCE_DATA_REPLACE      // 1 or 0 (or absent)
+		JOB_FOLDER              // stored jobs *
+		TMP_FOLDER                // tmp path (defaults to system tmp)
 	*/
 
-	/*
+    include_once("lib/class.dataSet.php");   
+    include_once("lib/class.inputPrepare.php"); 
+    include_once("lib/class.logClass.php");   
+    include_once("lib/functions.php");
 
-		php create_dataset.php --config=/config/config.ini --force_data_replace
-
-		$_ENV["repository"];
-		$_ENV["tmp_path"]; (optional)
-
-	*/
-
-	include("class.dataset.php");	
-	include("class.input-prepare.php");	
-	include('functions.php');
-
-	$cfg = getopt("",["config:"]);
+    $logger = new LogClass("log/validator.log","create dataset");
 
 	try
 	{
-		$force_data_replace = array_key_exists("force_data_replace",@getopt("",["force_data_replace"]));
+		if (empty(getenv('SUPPPLIER_CONFIG_FILE'))) throw new Exception("need a config file (env: SUPPPLIER_CONFIG_FILE)");
 
-		$repoPath = getenv("repository");
-		$tmpPath = getenv("tmp_path");
+		$cfg = parse_ini_file(getenv('SUPPPLIER_CONFIG_FILE'),true,INI_SCANNER_TYPED);
 
-		if (empty($repoPath)) throw new Exception("no repo path specified");
+		if (!$cfg) throw new Exception(sprintf("can't read config file %s",$tmp));
 
-		$cfg = readConfig();
-		$supplierConfigFile = getConfigFile();
+        $repoPath = realpath(getenv("JOB_FOLDER"));
+        $tmpPath = realpath(getenv("TMP_FOLDER"));
 
-		echo "config: " , $supplierConfigFile , "\n";
-		echo "repo: " , $repoPath , "\n";
-		echo "tabula rasa: " , ( $force_data_replace ? "y" : "n" ) , "\n";
+        if (empty($repoPath)) throw new Exception("no job folder specified (env: JOB_FOLDER)");
+
+		$force_data_replace = getenv('FORCE_DATA_REPLACE') ?: getenv('FORCE_DATA_REPLACE')=='1';
+
+		$logger->info(sprintf("config: %s", $supplierConfigFile));
+		$logger->info(sprintf("repo: %s",$repoPath));
+		$logger->info(sprintf("tabula rasa: %s",( $force_data_replace ? "y" : "n" )));
 
 		# inputPrepare: unpacks archives, renames files to valid extensions
 		$p = new inputPrepare;
+		$p->setLogClass($logger);
 
 		if (isset($cfg["specimen"]) && $cfg["specimen"]["input_dir"] && file_exists($cfg["specimen"]["input_dir"]))
 		{
@@ -71,35 +61,37 @@
 		$changes = $p->getNameChanges();
 
 		$d = new dataSet;
+
+		$d->setLogClass($logger);
 		$d->setChangedNames($changes);
 		$d->setForceDataReplace($force_data_replace);
 		$d->setDataSupplierCode($cfg["supplier_codes"]["source_system_code"]);
-		
+
 		if (isset($cfg["specimen"]) && $cfg["specimen"]["input_dir"])
 		{
 			$d->addInputDirectory($cfg["specimen"]["input_dir"],"specimen");
-			echo sprintf("added %s (%s)\n",$cfg["specimen"]["input_dir"],"specimen");
+			$logger->info(sprintf("added %s (%s)",$cfg["specimen"]["input_dir"],"specimen"));
 			$d->setIsIncremental($cfg["specimen"]["is_incremental"],"specimen");
 		}
 		
 		if (isset($cfg["multimedia"]) && $cfg["multimedia"]["input_dir"])
 		{
 			$d->addInputDirectory($cfg["multimedia"]["input_dir"],"multimedia");
-			echo sprintf("added %s (%s)\n",$cfg["multimedia"]["input_dir"],"multimedia");
+			$logger->info(sprintf("added %s (%s)",$cfg["multimedia"]["input_dir"],"multimedia"));
 			$d->setIsIncremental($cfg["multimedia"]["is_incremental"],"multimedia");
 		}
 		
 		if (isset($cfg["taxon"]) && $cfg["taxon"]["input_dir"])
 		{
 			$d->addInputDirectory($cfg["taxon"]["input_dir"],"taxon");
-			echo sprintf("added %s (%s)\n",$cfg["taxon"]["input_dir"],"taxon");
+			$logger->info(sprintf("added %s (%s)",$cfg["taxon"]["input_dir"],"taxon"));
 			$d->setIsIncremental($cfg["taxon"]["is_incremental"],"taxon");
 		}
 
 		if (isset($cfg["geo"]) && $cfg["geo"]["input_dir"])
 		{
 			$d->addInputDirectory($cfg["geo"]["input_dir"],"geo");
-			echo sprintf("added %s (%s)\n",$cfg["geo"]["input_dir"],"geo");
+			$logger->info(sprintf("added %s (%s)",$cfg["geo"]["input_dir"],"geo"));
 			$d->setIsIncremental($cfg["geo"]["is_incremental"],"geo");
 		}
 
@@ -117,14 +109,13 @@
 
 		$dataset_filename = $d->getDatasetFilename();
 
-		echo sprintf("wrote %s\n",$dataset_filename);
+		$logger->info(sprintf("wrote %s",$dataset_filename));
 		$d->removeProcessingFlags();
 		exit(0);
 
 	} 
 	catch(Exception $e)
 	{
-		print("error: " . $e->getMessage() . "\n");
-		// print("* " . implode("\n* ",$d->getMessages()) . "\n");
+        $logger->error($e->getMessage() . "; exiting");
 		exit(1);
 	}

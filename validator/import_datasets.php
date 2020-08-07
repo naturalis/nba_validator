@@ -1,50 +1,49 @@
 <?php
 
 /*
-    // new
-    getenv("job_path")  // incoming jobs
-    getenv("cfg_path")  // validator ini-file folder
+    INCOMING_JOB_FOLDER // incoming jobs *
+    INI_FILE_FOLDER     // validator ini-file folder *
+    INI_FILE_LIST       // supplier code -> ini file *
+    JOB_FOLDER          // stored jobs *
+    TMP_FOLDER          // tmp path (defaults to system tmp)
 
-    // existing
-    getenv("repository");
-    getenv("tmp_path");
+    export INCOMING_JOB_FILES=/data/validator/tom_jobs
+    export CFG_PATH=/home/maarten/Documents/nba/nba_validator_config_local/to_be_altered
+    export REPOSITORY=/data/validator/datasets
+    export TMP_PATH=/data/validator/temporary
+    export INI_FILES='{"BRAHMS":"brahms.ini","COL":"col.ini","CRS":"crs.ini","CSR":"csr.ini","GEO":"geoareas.ini","NSR":"nsr.ini","OBS":"obs.ini","XC":"xenocanto.ini"}'
 
 */
 
-
-    include("class.dataset.php");   
-    include("class.input-prepare.php"); 
-    include('functions.php');
-
-    $supplierInifFiles = 
-        [
-            "BRAHMS" => "brahms.ini",
-            "COL" => "col.ini",
-            "CRS" => "crs.ini",
-            "CSR" => "csr.ini",
-            "GEO" => "geoareas.ini",
-            "NSR" => "nsr.ini",
-            "OBS" => "obs.ini",
-            "XC" => "xenocanto.ini"
-        ];
+    include_once("lib/class.dataSet.php");   
+    include_once("lib/class.inputPrepare.php"); 
+    include_once("lib/class.logClass.php");   
+    include_once("lib/functions.php");
 
     $processableStatus="IN_PROGRESS";
 
     try
     {
-        $jobPath = realpath(getenv("job_path"));
-        $cfgPath = realpath(getenv("cfg_path"));
+        $logger = new LogClass("log/validator.log","import datasets");
+        $dataset_logger = new LogClass("log/validator.log","dataset");
+        $input_logger = new LogClass("log/validator.log","input prepare");
 
-        $repoPath = getenv("repository");
-        $tmpPath = getenv("tmp_path");
+        $jobPath = realpath(getenv("INCOMING_JOB_FOLDER"));
+        $cfgPath = realpath(getenv("INI_FILE_FOLDER"));
 
-        if (empty($jobPath)) throw new Exception("no job path specified (env: job_path)");
-        if (empty($cfgPath)) throw new Exception("no validator configurations path specified (env: cfg_path)");
-        if (empty($repoPath)) throw new Exception("no repo path specified");
+        $repoPath = realpath(getenv("JOB_FOLDER"));
+        $tmpPath = realpath(getenv("TMP_FOLDER"));
 
+        $supplierInifFiles = json_decode(getenv("INI_FILE_LIST"),true);
 
-        if (!file_exists($jobPath)) throw new Exception(sprintf("job path %s doesn't exist",$jobPath));
-        if (!file_exists($cfgPath)) throw new Exception(sprintf("validator configurations path %s doesn't exist",$cfgPath));
+        if (empty($jobPath)) throw new Exception("no job path specified (env: INCOMING_JOB_FOLDER)");
+        if (empty($cfgPath)) throw new Exception("no validator configurations path specified (env: INI_FILE_FOLDER)");
+        if (empty($repoPath)) throw new Exception("no repo path specified (env: JOB_FOLDER)");
+
+        if (!file_exists($jobPath)) throw new Exception(sprintf("job path doesn't exist: %s",$jobPath));
+        if (!file_exists($cfgPath)) throw new Exception(sprintf("validator configurations path doesn't exist: %s",$cfgPath));
+
+        if (empty($supplierInifFiles)) throw new Exception("missing or malformed ini file list (env: INI_FILE_LIST)");
 
         $jobs=[];
 
@@ -55,14 +54,17 @@
             $jobs[$jobFile]=json_decode(file_get_contents($jobFile),true);
         }
 
+        //running jobs
+        $logger->info(sprintf("found %s job(s)",count($jobs)));
+
         foreach ($jobs as $thisJobFile => $job)
         {
-
-            echo sprintf("reading job file %s\n",$thisJobFile);
+            $logger->info(sprintf("reading job file %s",$thisJobFile));
 
             if (!isset($job["status"]) || $job["status"]!=$processableStatus)
             {
-                echo sprintf("skipping jobfile %s (status should be '%s', but is '%s')\n", $thisJobFile, $processableStatus, @$job["status"]);
+                $logger->info(sprintf("skipping jobfile %s (status should be '%s', but is '%s')", $thisJobFile, $processableStatus, @$job["status"]));
+
                 continue;
             }
 
@@ -70,11 +72,10 @@
 
             if (array_key_exists($job["data_supplier"], $supplierInifFiles))
             {
-
                 $supplierConfigFile = $cfgPath . "/" . $supplierInifFiles[$job["data_supplier"]];
                 $cfg = readConfig($supplierConfigFile);
 
-                echo sprintf("config: %s\n", $supplierConfigFile);
+                $logger->info(sprintf("config: %s", $supplierConfigFile));
 
                 $src = $job["source_directories"];
 
@@ -91,11 +92,13 @@
                 # inputPrepare: unpacks archives, renames files to valid extensions
                 $p = new inputPrepare;
 
+                $p->setLogClass($input_logger);
+
                 if (isset($cfg["specimen"]) && isset($jobPath_specimen))
                 {
                     if (!file_exists($jobPath_specimen))
                     {
-                        echo sprintf("folder doesn't exist: %s\n",$jobPath_specimen);
+                        $logger->warning(sprintf("folder doesn't exist: %s",$jobPath_specimen));
                         unset($jobPath_specimen);
                     }
                     else
@@ -108,7 +111,7 @@
                 {
                     if (!file_exists($jobPath_multimedia))
                     {
-                        echo sprintf("folder doesn't exist: %s\n",$jobPath_multimedia);
+                        $logger->warning(sprintf("folder doesn't exist: %s",$jobPath_multimedia));
                         unset($jobPath_multimedia);
                     }
                     else
@@ -121,7 +124,7 @@
                 {
                     if (!file_exists($jobPath_taxon))
                     {
-                        echo sprintf("folder doesn't exist: %s\n",$jobPath_taxon);
+                        $logger->warning(sprintf("folder doesn't exist: %s",$jobPath_taxon));
                         unset($jobPath_taxon);
                     }
                     else
@@ -134,7 +137,7 @@
                 {
                     if (!file_exists($jobPath_geo))
                     {
-                        echo sprintf("folder doesn't exist: %s\n",$jobPath_geo);
+                        $logger->warning(sprintf("folder doesn't exist: %s",$jobPath_geo));
                         unset($jobPath_geo);
                     }
                     else
@@ -147,7 +150,8 @@
                 $changes = $p->getNameChanges();
 
                 $d = new dataSet;
-
+              
+                $p->setLogClass($dataset_logger);
                 $d->setChangedNames($changes);
                 $d->setForceDataReplace($job["tabula_rasa"]);
                 $d->setDataSupplierCode($cfg["supplier_codes"]["source_system_code"]);
@@ -155,28 +159,28 @@
                 if (isset($cfg["specimen"]) && isset($jobPath_specimen))
                 {
                     $d->addInputDirectory($jobPath_specimen,"specimen");
-                    echo sprintf("added %s (%s)\n",$jobPath_specimen,"specimen");
+                    $logger->info(sprintf("added %s (%s)",$jobPath_specimen,"specimen"));
                     $d->setIsIncremental($cfg["specimen"]["is_incremental"],"specimen");
                 }
                 
                 if (isset($cfg["multimedia"]) && isset($jobPath_multimedia))
                 {
                     $d->addInputDirectory($jobPath_multimedia,"multimedia");
-                    echo sprintf("added %s (%s)\n",$jobPath_multimedia,"multimedia");
+                    $logger->info(sprintf("added %s (%s)",$jobPath_multimedia,"multimedia"));
                     $d->setIsIncremental($cfg["multimedia"]["is_incremental"],"multimedia");
                 }
                 
                 if (isset($cfg["taxon"]) && isset($jobPath_taxon))
                 {
                     $d->addInputDirectory($jobPath_taxon,"taxon");
-                    echo sprintf("added %s (%s)\n",$jobPath_taxon,"taxon");
+                    $logger->info(sprintf("added %s (%s)",$jobPath_taxon,"taxon"));
                     $d->setIsIncremental($cfg["taxon"]["is_incremental"],"taxon");
                 }
 
                 if (isset($cfg["geo"]) && isset($jobPath_geo))
                 {
                     $d->addInputDirectory($jobPath_geo,"geo");
-                    echo sprintf("added %s (%s)\n",$jobPath_geo,"geo");
+                    $logger->info(sprintf("added %s (%s)",$jobPath_geo,"geo"));
                     $d->setIsIncremental($cfg["geo"]["is_incremental"],"geo");
                 }
 
@@ -195,7 +199,7 @@
                 }
                 else
                 {
-                    echo sprintf("job file has no id; creating new id\n");
+                    $logger->warning(sprintf("job file has no id; creating new id"));
                 }
 
                 if (isset($job["date"]))
@@ -204,7 +208,7 @@
                 }
                 else
                 {
-                    echo sprintf("job file has no date; creating new date\n");
+                    $logger->warning(sprintf("job file has no date; creating new date"));
                 }
 
                 $d->setIsTestRun($job["test_run"] ?? false);
@@ -217,24 +221,24 @@
 
                 $dataset_filename = $d->getDatasetFilename();
 
-                echo sprintf("wrote %s\n",$dataset_filename);
+                $logger->info(sprintf("wrote %s",$dataset_filename));
 
                 $d->removeProcessingFlags();
                
                 foreach (array_unique($base_subdirs) as $base_subdir)
                 {
                     $this_dir = $jobPath . "/" . $base_subdir;
-                    echo sprintf("deleting temporary source dir %s\n",$this_dir);
+                    $logger->info(sprintf("deleting temporary source dir %s",$this_dir));
                     rmDirRecursive($this_dir);
                 }
 
                 unlink($thisJobFile);
 
-                echo "done","\n\n";
+                $logger->info(sprintf("job '%s' done",$job["id"]));
             }
             else
             {
-                echo sprintf("unknown data supplier code %s\n",$job["data_supplier"]);
+                $logger->warning(sprintf("unknown data supplier code %s",$job["data_supplier"]));
             }
         }
 
@@ -243,7 +247,6 @@
     } 
     catch(Exception $e)
     {
-        print("error: " . $e->getMessage() . "\n");
-        // print("* " . implode("\n* ",$d->getMessages()) . "\n");
+        $logger->error($e->getMessage() . "; exiting");
         exit(1);
     }

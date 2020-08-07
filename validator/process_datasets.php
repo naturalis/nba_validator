@@ -1,73 +1,57 @@
 <?php
 
-
 /*
-		dry run
-
-
-		reead archiving from jobfile
-
-		// set no archiving as switch if dry run
-// set no archiving at all (def false, make switcable)
-
-
-
-
-	*/
-
-
+	INCOMING_JOB_FILES
+	VALIDATED_OUTPUT_FOLDER
+	OUTGOING_JOB_FOLDER
+	OUTGOING_OUTPUT_FOLDER	
+	OUTGOING_TEST_JOB_FOLDER
+*/
 
 	require __DIR__ . '/vendor/autoload.php';
 
-	include_once('class.job-runner.php');
-	include_once('class.json-validator.php');
-	include_once('functions.php');
+	include_once("lib/class.jobRunner.php");
+	include_once("lib/class.jsonValidator.php");
+    include_once("lib/class.logClass.php");   
+	include_once("lib/functions.php");
 
-	/*
-		$cfg = getopt("",["outdir:","repository:","logserver:","jobfolder:","datafolder:","outfile_lines:"]);
+    $logger = new LogClass("log/validator.log","process datasets");
 
-		if (is_null($cfg["outdir"]) || is_null($cfg["repository"]))
+	$incoming_job_files = getenv('INCOMING_JOB_FILES') ?: getenv('INCOMING_JOB_FILES');
+	$validated_output_folder = getenv('VALIDATED_OUTPUT_FOLDER') ?: getenv('VALIDATED_OUTPUT_FOLDER');
+	$outgoing_job_folder = getenv('OUTGOING_JOB_FOLDER') ?: getenv('OUTGOING_JOB_FOLDER');
+	$outgoing_output_folder = getenv('OUTGOING_OUTPUT_FOLDER') ?: getenv('VALIDATED_OUTPUT_FOLDER');
+	$outgoing_test_job_folder = getenv('OUTGOING_TEST_JOB_FOLDER') ?: getenv('OUTGOING_TEST_JOB_FOLDER');
+
+	try
+	{
+		foreach ([
+			"INCOMING_JOB_FILES" => $incoming_job_files,
+			"VALIDATED_OUTPUT_FOLDER" => $validated_output_folder,
+			"OUTGOING_JOB_FOLDER" => $outgoing_job_folder,
+			"OUTGOING_OUTPUT_FOLDER" => $outgoing_output_folder,
+			"OUTGOING_TEST_JOB_FOLDER" => $outgoing_test_job_folder
+		] as $key => $value)
 		{
-			$t="usage:\n".
-			     "sudo php process_datasets.php --outdir --repository [--jobfolder --datafolder] [--logserver]\n".
-			     "  --outdir         target folder for output of processed files (`--outdir=/data/output/`)\n".
-			     "  --repository     source folder with datasets (`--repository=/data/datasets/`)\n" .
-			     "  --jobfolder      dataset target folder for next step in import chain\n" .
-			     "                   (optional; if provided, --datafolder is also required)\n" .
-			     "  --datafolder     datafile target folder for next step in import chain\n" .
-			     "                   (optional; if provided, --jobfolder is also required)\n" .
-			     "  --logserver      elasticsearch logsever adress (optional)\n" .
-			     "  --outfile_lines  max length in lines validator output files (optional; default 500000; use 0 for all in one)\n"
-			     ;
-			     
-			echo $t;
-			exit(0);
+			if (empty($value)) throw new Exception(sprintf("%s not specified",$key));
+			if (!file_exists($value)) throw new Exception(sprintf("%s '%s' doesn't exist",$key,$value));
 		}
-	*/
+	}
+	catch(Exception $e)
+	{
+		$logger->error(sprintf("aborting: %s",$e->getMessage()));
+		exit(0);
+	}
 
 	$suppress_slack_posts = isset($_ENV["SLACK_ENABLED"]) ? $_ENV["SLACK_ENABLED"]==0 : false;
-	$suppress_log_server_feedback = true;
 	$slack_hook = isset($_ENV["SLACK_WEBHOOK"]) ? $_ENV["SLACK_WEBHOOK"] : null;
-	$log_server_address = isset($_ENV["logserver"]) ? $_ENV["logserver"] : null;
-	$preprocessor_job_folder = isset($_ENV["jobfolder"]) ? $_ENV["jobfolder"] : null;
-	$preprocessor_file_folder = isset($_ENV["datafolder"]) ? $_ENV["datafolder"] : null;
-	$outfile_lines = isset($_ENV["outfile_lines"]) ? intval($_ENV["outfile_lines"]) : 500000;
 
-	// we're not outputting anything smaller than 50,000 lines (0 means all in one file)
+	$outfile_lines = isset($_ENV["outfile_lines"]) ? intval($_ENV["outfile_lines"]) : 500000;
 	$outfile_lines = ($outfile_lines<50000 && $outfile_lines!=0) ? 500000 : $outfile_lines;
 
-	// get preprocessing database data input dir
-	// $outdir = getOutDir();
-	$outdir = isset($_ENV["outdir"]) ? $_ENV["outdir"] : null;
-	if (empty($outdir)) throw new Exception("no output directory specified");
-	if (!file_exists($outdir)) throw new Exception(sprintf("output directory %s does not exist",$outdir));
-
-	// read all datasets
-	$repository = isset($_ENV["repository"]) ? $_ENV["repository"] : null;
-	if (empty($repository)) throw new Exception("no repository path specified");
-	if (!file_exists($repository)) throw new Exception(sprintf("repository directory %s does not exist",$repository));
-
-	$datasets = readRepository( $repository );
+	// read available datasets
+	$datasets = glob(rtrim($incoming_job_files,"/") . "/*.json");
+	usort($datasets, create_function('$a,$b', 'return filemtime($a) - filemtime($b);'));
 
 	// keep only the ones with status 'pending'
 	$jobs=[];
@@ -81,23 +65,26 @@
 	}
 
 	//running jobs
-	echo sprintf("found %s job(s)\n",count($jobs));
+	$logger->info(sprintf("found %s job(s)",count($jobs)));
 
 	foreach ($jobs as $job)
 	{
-		echo sprintf("reading job %s\n",$job["id"]);
-		echo sprintf("job start: %s\n",date('c',time()));
+		$logger->info(sprintf("reading job %s",$job["id"]));
+		$logger->info(sprintf("job start: %s",date('c',time())));
 
 		$time_pre = microtime(true);
+
 		$job_runner = new jobRunner($job);
-		$job_runner->setOutDir($outdir);
+		$job_logger = new LogClass("log/validator.log","job runner");
+		$job_runner->setLogClass($job_logger);
+		$job_runner->setOutputDir($validated_output_folder);
 		$job_runner->setValidatorMaxOutfileLength($outfile_lines);
 
 		try
 		{
-			echo sprintf("processing job %s\n",$job["id"]);
+			$logger->info(sprintf("processing job %s",$job["id"]));
 			$job["status"]="processing";
-			storeUpdatedJobFile( $job );
+			$job_runner->storeJobFile( $job );
 			$job_runner->run();
 			$status="validated";
 		} 
@@ -105,11 +92,10 @@
 		{
 			$status="failed validation";
 			$status_info=$e->getMessage();
-			echo sprintf("!!! ABORTING JOB %s: %s\n",$job["id"],$status_info);
+			$logger->error(sprintf("ABORTING JOB %s: %s",$job["id"],$status_info));
 		}
 
-		// test run: delete not archive
-		$job_runner->archiveOriginalFiles();
+		$job_runner->archiveValidationFiles();
 
 		$time_taken = secondsToTime(microtime(true) - $time_pre);
 
@@ -123,75 +109,34 @@
 			$job["status_info"]=$status_info;
 		}
 
-		$job["validator_client_error_files"] = moveErrorFilesToReportDir($job);
+		$job_runner->storeJobFile( $job );
+		$job_runner->moveErrorFilesToReportDir();
+		$job_runner->writeClientReport();
 
-		$reports=writeClientReport($job);
-		$job["validator_client_reports"]=$reports;
-		echo "wrote " , implode(";", $job["validator_client_reports"]) , "\n";
-
-		storeUpdatedJobFile( $job );
-		echo "wrote " , $job["dataset_filename"] , "\n";
-
-		if (!$suppress_log_server_feedback)
+		if (!$job["test_run"])
 		{
-			if (!is_null($log_server_address))
+			if ($job["status"]=="validated")
 			{
-				putValidationLog( $job, $log_server_address );
-				echo "put validation log to server" , "\n";
+				$job_runner->moveValidatedFiles( $outgoing_output_folder );	
+				$job_runner->moveJobFile( $outgoing_job_folder );	
 			}
 			else
 			{
-				echo sprintf("error: log server address missing from ENV"), "\n";
+				$logger->info(sprintf("skipped moving files: job status = %s",$job["status"]));
 			}
+		}
+		else
+		{
+			$job_runner->deleteDataFiles();
+			$job_runner->moveJobFile( $outgoing_test_job_folder );
+		}
+
+		if (!$suppress_slack_posts && !is_null($slack_hook))
+		{
+			postSlackJobResults( $slack_hook, $job );
 		}	
-		else
-		{
-			echo sprintf("log server feedback suppressed"), "\n";
-		}
 
-		if ($job["status"]=="validated" && !is_null($preprocessor_job_folder) && !is_null($preprocessor_file_folder))
-		{
-			$job = moveJobFilesToPercolator( $job, $preprocessor_job_folder, $preprocessor_file_folder );	
-			echo "moved to " , $job["dataset_filename"] , "\n";
-		}
-		else
-		{
-			$c=[];
-			if ($job["status"]!="validated")
-			{
-				$c[]="job status != validated";
-			}
-			if (is_null($preprocessor_job_folder))
-			{
-				$c[]="preprocessor_job_folder is null";
-			}
-			if (is_null($preprocessor_file_folder))
-			{
-				$c[]="preprocessor_file_folder is null";
-			}
-
-			echo sprintf("skipped moving files to preprocessor (%s)",implode("; ", $c)), "\n";
-		}
-
-		storeUpdatedJobFile( $job );
-
-		if (!$suppress_slack_posts)
-		{
-			if (!is_null($slack_hook))
-			{
-				postSlackJobResults( $slack_hook, $job );
-			}
-			else
-			{
-				echo sprintf("error: slack hook missing from ENV"), "\n";
-			}
-		}	
-		else
-		{
-			echo sprintf("slack feedback suppressed"), "\n";
-		}
-
-		echo sprintf("finished job %s\n",$job["id"]);
-		echo sprintf("job file: %s\n",$job["dataset_filename"]);
-		echo "job took ", $time_taken, "\n\n";
+		$logger->info(sprintf("finished job %s",$job["id"]));
+		$logger->info(sprintf("job file: %s",$job["dataset_filename"]));
+		$logger->info(sprintf("job took %s", $time_taken));
 	}
