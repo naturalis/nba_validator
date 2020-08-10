@@ -19,6 +19,7 @@
 		private $always_process=false;
 		private $force_data_replace=false;
 		private $is_test_run=false;
+		private $is_imported_dataset=false;
 
 		private $job_id_override;
 		private $job_date_override;
@@ -151,6 +152,14 @@
 			if (is_bool($is_test_run))
 			{
 				$this->is_test_run = $is_test_run;
+			}
+		}
+
+		public function setImportedDataset($is_imported_dataset)
+		{
+			if (is_bool($is_imported_dataset))
+			{
+				$this->is_imported_dataset = $is_imported_dataset;
 			}
 		}
 
@@ -492,6 +501,7 @@
 			$this->set["supplier_config_file"] = $this->supplier_config_file;
 			$this->set["tabula_rasa"] = $this->force_data_replace;
 			$this->set["test_run"] = $this->is_test_run;
+			$this->set["imported_dataset"] = $this->is_imported_dataset;
 
 			foreach($this->present_datatypes as $type)
 			{

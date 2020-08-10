@@ -54,11 +54,11 @@
 
 		public function run()
 		{
+			$this->_setTestRun();
 			$this->_checkConfigFile();
 			$this->_readConfig();
 			$this->_checkNumberOfLines();
 			$this->_setGlobalFailPercentage();
-			$this->_setTestRun();
 			$this->_setTestRunOverrides();
 			$this->_runValidator();
 		}
@@ -272,18 +272,11 @@
 
 					foreach($files as $key => $file)
 					{
-						if (file_exists($file["tmp_path"]))
+						if (isset($file["tmp_path"]) && file_exists($file["tmp_path"]))
 						{
 							unlink($file["tmp_path"]);
 							unset($this->job[$class][$type][$key]["tmp_path"]);
 							$this->logClass->info(sprintf("unlinked %s",$file["tmp_path"]));							
-						}
-						else
-						{
-							if (!$this->test_run)
-							{
-								$this->logClass->warning(sprintf("file to unlink %s doesn't exist!?",$file["tmp_path"]));
-							}
 						}
 					}
 				}
@@ -362,7 +355,8 @@
 
 			$t["job_settings"] = [
 				"tabula_rasa" => $this->job["tabula_rasa"],
-				"is_incremental" => $this->job["is_incremental"]
+				"test_run" => $this->job["test_run"],
+				"is_incremental" => $this->job["is_incremental"],
 			];
 
 			if (isset($this->job["input"]))
@@ -732,11 +726,11 @@
 				$this->total_not_valid_docs += ($validator_results["broken_docs"] + $validator_results["invalid_json_docs"]);
 				$this->processed_input_files += count($files);
 
-				$this->logClass->info(sprintf("%s/%s: processed %s of %s files (failed %s%%)",
+				$this->logClass->info(sprintf("%s/%s: processed %s files (%s total); failed %s%%",
 					$this->job["data_supplier"], 
 					$this->type,
-					$this->processed_input_files,
 					count($this->job["input"][$this->type]),
+					$this->processed_input_files,
 					$this->_getGlobalFailedPercentage())
 				);
 			}

@@ -140,6 +140,7 @@
                 $d->setLogClass($dataset_logger);
                 $d->setChangedNames($changes);
                 $d->setForceDataReplace($job["tabula_rasa"]);
+                $d->setImportedDataset(true);
                 $d->setDataSupplierCode($cfg["supplier_codes"]["source_system_code"]);
 
                 if (isset($cfg["specimen"]) && isset($jobPath_specimen))

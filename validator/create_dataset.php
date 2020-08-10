@@ -4,6 +4,7 @@
 		SUPPPLIER_CONFIG_FILE   // crs.ini *
 		VALIDATOR_JOB_FOLDER    // stored jobs *
 		FORCE_DATA_REPLACE      // 1 or 0 (or absent)
+		FORCE_TEST_RUN      	// 1 or 0 (or absent)
 		TMP_FOLDER              // tmp path (defaults to system tmp)
 	*/
 
@@ -31,10 +32,12 @@
 		if (empty($repoPath)) throw new Exception("no validator job folder specified (env: VALIDATOR_JOB_FOLDER)");
 
 		$force_data_replace = getenv('FORCE_DATA_REPLACE') ? getenv('FORCE_DATA_REPLACE')=='1' : false;
+		$force_test_run = getenv('FORCE_TEST_RUN') ? getenv('FORCE_TEST_RUN')=='1' : false;
 
 		$logger->info(sprintf("config: %s", $cfg_file));
 		$logger->info(sprintf("repo: %s",$repoPath));
 		$logger->info(sprintf("tabula rasa: %s",( $force_data_replace ? "y" : "n" )));
+		$logger->info(sprintf("test run: %s",( $force_test_run ? "y" : "n" )));
 
 		# inputPrepare: unpacks archives, renames files to valid extensions
 		$p = new inputPrepare;
@@ -68,6 +71,8 @@
 		$d->setLogClass($logger);
 		$d->setChangedNames($changes);
 		$d->setForceDataReplace($force_data_replace);
+		$d->setIsTestRun($force_test_run);
+		$d->setImportedDataset(false);
 		$d->setDataSupplierCode($cfg["supplier_codes"]["source_system_code"]);
 
 		if (isset($cfg["specimen"]) && $cfg["specimen"]["input_dir"])
@@ -98,7 +103,7 @@
 			$d->setIsIncremental($cfg["geo"]["is_incremental"],"geo");
 		}
 
-		$d->setSupplierConfigFile($supplierConfigFile);
+		$d->setSupplierConfigFile($cfg_file);
 		$d->setOutputDirectory($repoPath);
 		$d->setReportDirectory($cfg["settings"]["report_dir"]);
 
