@@ -79,7 +79,7 @@
 			}
 			else
 			{
-				throw new Exception("No output dir specified");
+				throw new Exception("no output folder specified");
 			}
 
 			if (isset($p['schema_file']))
@@ -89,14 +89,14 @@
 			}
 			else
 			{
-				throw new Exception("No schema file specified");
+				throw new Exception("no schema file specified");
 			}
 
 			foreach ([$this->output_dir] as $dir)
 			{
 			 	if (!file_exists($dir))
 			 	{
-			 		throw new Exception(sprintf('Directory "%s" doesn\'t exist',$dir));
+			 		throw new Exception(sprintf('folder doesn\'t exist: "%s"',$dir));
 			 	}
 			}
 
@@ -278,7 +278,7 @@
 			} 
 			else
 			{
-				throw new Exception(sprintf("File %s doesn't exist",$file));
+				throw new Exception(sprintf("file doesn't exist: %s",$file));
 			}
 		}
 
@@ -292,7 +292,7 @@
 			} 
 			else
 			{
-				throw new Exception(sprintf("File %s doesn't exist",$file));
+				throw new Exception(sprintf("file doesn't exist: %s",$file));
 			}
 		}
 
@@ -321,7 +321,7 @@
 			$this->_initializeSQLite();
 			$this->_setTotalLines();
 
-			$this->logClass->info(sprintf("lines: %s",$this->total_lines));
+			$this->logClass->info(sprintf("total lines: %s",$this->total_lines));
 
 			foreach ($this->file_list as $key => $file_item)
 			{
@@ -331,7 +331,7 @@
 
 				if ($file = fopen($filename, "r"))
 				{
-					$this->logClass->info(sprintf("reading: %s",$filename));
+					$this->logClass->info(sprintf("validating file: %s",$filename));
 
 					$line=1;
 				    while(!feof($file))
@@ -381,7 +381,7 @@
 				        	count($this->broken_docs)==$this->lines_read
 				        )
 				        {
-				        	throw new Exception(sprintf('First %s lines of "%s" are broken (tripped load_error_threshold)',
+				        	throw new Exception(sprintf('first %s lines of "%s" are broken (tripped load_error_threshold)',
 				        		$this->lines_read,$filename_for_reports));
 				        }
 
@@ -413,7 +413,7 @@
 				}
 				else
 				{
-					throw new Exception(sprintf('Cannot open %s for reading',$filename));
+					throw new Exception(sprintf("cannot open file for reading: %s",$filename));
 				}
 			}
 
@@ -557,11 +557,16 @@
 
 		private function _readAndVerifyJsonSchema()
 		{
+			if (!file_exists($this->schema_file))
+			{
+				throw new Exception(sprintf("schema file does not exist: %s",$this->schema_file));
+			}
+
 			$this->schema = json_decode(file_get_contents($this->schema_file));
 
 			if (is_null($this->schema))
 			{
-				throw new Exception(sprintf('Failed to parse schema file "%s"',$this->schema_file));
+				throw new Exception(sprintf("failed to parse schema file: %s",$this->schema_file));
 			}
 		}
 
@@ -569,11 +574,11 @@
 		{
 			if (!$this->schema->properties->sourceSystem->properties->code->enum)
 			{
-				throw new Exception("Schema misses core field enum: sourceSystem->code->enum");
+				throw new Exception("schema misses core field: sourceSystem->code->enum");
 			}
 			if (!$this->schema->properties->sourceSystem->properties->name->enum)
 			{
-				throw new Exception("Schema misses core field enum: sourceSystem->name->enum");
+				throw new Exception("schema misses core field: sourceSystem->name->enum");
 			}
 			// not present in taxon
 			// if (!$this->schema->properties->sourceID->enum)
@@ -601,7 +606,7 @@
 
 			if (is_null($tmp))
 			{
-				throw new Exception(sprintf('Failed to parse schema file "%s"',$this->additional_schema_file));
+				throw new Exception(sprintf("failed to parse schema file: %s",$this->additional_schema_file));
 			}
 		}
 
@@ -625,7 +630,7 @@
 
 			if (is_null($this->schema))
 			{
-				throw new Exception(sprintf('Failed to parse merged schema file "%s"',$this->schema_file));
+				throw new Exception(sprintf("failed to parse merged schema file: %s",$this->schema_file));
 			}
 		}
 
@@ -636,7 +641,7 @@
 			{
 				if ($this->fail_on_any_error)
 				{
-		        	throw new Exception(sprintf("invalid JSON (file: %s, line %s, error: %s); tripped over fail_on_any_error",
+		        	throw new Exception(sprintf("invalid json (file: %s, line %s, error: %s); tripped over fail_on_any_error",
 		        		basename($file),$line,$this->_getLastJsonError()));
 				}
 
@@ -751,7 +756,7 @@
 			        )
 			        {
 			        	$this->_writeErrors();
-			        	throw new Exception(sprintf("First %s lines didn't validate (tripped load_error_threshold); see %s for errors.",
+			        	throw new Exception(sprintf("first %s lines didn't validate (tripped load_error_threshold); see %s for errors.",
 			        		$this->load_error_threshold, sprintf($this->error_file,$this->error_file_counter)));
 			        }
 				}
@@ -940,8 +945,6 @@
 					$this->output_files['ids'][]=$save_file;
 					$this->logClass->info(sprintf("wrote '%s' id's to %s",$key, $save_file));
 				}
-
-				
 			}
 	    }
 
@@ -957,7 +960,7 @@
 				}
 				if (!is_null($this->source_system_defaults[$field]) && empty($this->source_system_defaults[$field]))
 				{
-					throw new Exception("Empty string specified for source system default: " . $field);
+					throw new Exception(sprintf("empty string specified for source system default: %s", $field));
 				}
 			}
 		}
@@ -980,13 +983,13 @@
 
 					if (!in_array($supplied_value, $valid_values))
 					{
-						throw new Exception(sprintf('Supplied value "%s" for "%s" is invalid (possible values: %s)',
+						throw new Exception(sprintf("supplied value \"%s\" for \"%s\" is invalid (possible values: %s)",
 							$supplied_value,$field,implode("; ",$valid_values)));
 					}
 				}
 				else
 				{
-					throw new Exception(sprintf('There is no schema mapping for "%s"',$field));
+					throw new Exception(sprintf("there is no schema mapping for \"%s\"",$field));
 				}
 			}
 		}
@@ -1148,7 +1151,7 @@
 
 				$this->_reportNonUniqueIds();
 
-				throw new Exception(sprintf('Found non-unique IDs (allow_double_ids = false); %s',
+				throw new Exception(sprintf("found non-unique id's (allow_double_ids = false); %s",
 					self::DELETE_OUTPUT_ON_FATAL_EXCEPTION ? "deleted output" : "wrote possibly partial output"
 				));
 			}
@@ -1160,7 +1163,7 @@
 
 			$results = $this->db->query($stmt);
 			$buffer=[];
-			$buffer[] = "take note: this sample of the non unique ID's is not necessarily a complete list.";
+			$buffer[] = "take note: this is a sample of the non unique id's, and not necessarily a complete list.";
 			$buffer[] = "";
 			while ($row = $results->fetchArray())
 			{

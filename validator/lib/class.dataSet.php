@@ -213,7 +213,7 @@
 		{
 			if (count($this->dirs)==0)
 			{
-				throw new Exception("no directories provided");
+				throw new Exception("no data directories provided");
 			}
 			if (strlen($this->data_supplier_code)==0)
 			{
@@ -221,7 +221,7 @@
 			}
 			if (strlen($this->output_dir)==0)
 			{
-				throw new Exception("no output directory provided");
+				throw new Exception("no data output directory provided");
 			}
 			if (count($this->report_dirs)==0)
 			{

@@ -1,6 +1,6 @@
 <?php
 
-	class jobRunner
+	class JobRunner
 	{
 		private $logClass;
 		private $validatorLogClass;
@@ -11,7 +11,6 @@
 		private $validator;
 		private $validatorMaxOutfileLength=500000;
 		private $exportIds=false;
-		private $ppdbWorksTopToBottom=true;
 		private $processed_input_files=0;
 		private $globalFailPercentage=-1;
 		private $test_run = false;
@@ -197,7 +196,7 @@
 			{
 				$new_paths=[];
 				
-				foreach($file["results"]["outfiles"]["valid"] as $file);
+				foreach((array)$file["results"]["outfiles"]["valid"] as $file);
 				{
 					$new = $data_folder . basename($file);	
 					if (rename($file, $new))
@@ -247,7 +246,7 @@
 			{
 				$this->job["dataset_filename"] = $new;
 				$this->storeJobFile();
-				$logger->info(sprintf("moved job file to %s" , $this->job["dataset_filename"]));
+				$this->logClass->info(sprintf("moved job file to %s" , $this->job["dataset_filename"]));
 			}
 			else
 			{
@@ -273,9 +272,19 @@
 
 					foreach($files as $key => $file)
 					{
-						unlink($file["tmp_path"]);
-						unset($this->job[$class][$type][$key]["tmp_path"]);
-						$this->logClass->info(sprintf("unlinked %s",$file["tmp_path"]));
+						if (file_exists($file["tmp_path"]))
+						{
+							unlink($file["tmp_path"]);
+							unset($this->job[$class][$type][$key]["tmp_path"]);
+							$this->logClass->info(sprintf("unlinked %s",$file["tmp_path"]));							
+						}
+						else
+						{
+							if (!$this->test_run)
+							{
+								$this->logClass->warning(sprintf("file to unlink %s doesn't exist!?",$file["tmp_path"]));
+							}
+						}
 					}
 				}
 			}
@@ -429,7 +438,6 @@
 			$this->job["validator_client_reports"]=$files;
 			$this->storeJobFile();
 		}
-
 
 		private function _checkConfigFile()
 		{
@@ -600,25 +608,18 @@
 
 			$new_order=[];
 
-			$index_files = array_map(function($item)
+			$indexed_files = array_map(function($item)
 				{ return str_getcsv($item, self::INDEX_FILE_FIELD_SEP); }, 
 				file($index_file["tmp_path"],FILE_IGNORE_NEW_LINES|FILE_SKIP_EMPTY_LINES)
     		);
 
-			foreach ($index_files as $index_file)
+			foreach ($indexed_files as $indexed_file)
 			{
 				foreach ($files as $file)
 				{
-					if (strpos(strrev($file["path"]),strrev($index_file[0]))===0)
+					if (strpos(strrev($file["path"]),strrev($indexed_file[0]))===0)
 					{
-						if ($this->ppdbWorksTopToBottom)
-						{
-							array_push($new_order,$file);
-						}
-						else
-						{
-							array_unshift($new_order,$file);
-						}
+						array_push($new_order,$file);
 					}
 				}
 			}
@@ -729,7 +730,7 @@
 
 				$this->total_valid_docs += $validator_results["valid_json_docs"];
 				$this->total_not_valid_docs += ($validator_results["broken_docs"] + $validator_results["invalid_json_docs"]);
-				$this->processed_input_files++;
+				$this->processed_input_files += count($files);
 
 				$this->logClass->info(sprintf("%s/%s: processed %s of %s files (failed %s%%)",
 					$this->job["data_supplier"], 

@@ -1,20 +1,5 @@
 <?php
 
-/*
-    INCOMING_JOB_FOLDER // incoming jobs *
-    INI_FILE_FOLDER     // validator ini-file folder *
-    INI_FILE_LIST       // supplier code -> ini file *
-    JOB_FOLDER          // stored jobs *
-    TMP_FOLDER          // tmp path (defaults to system tmp)
-
-    export INCOMING_JOB_FILES=/data/validator/tom_jobs
-    export CFG_PATH=/home/maarten/Documents/nba/nba_validator_config_local/to_be_altered
-    export REPOSITORY=/data/validator/datasets
-    export TMP_PATH=/data/validator/temporary
-    export INI_FILES='{"BRAHMS":"brahms.ini","COL":"col.ini","CRS":"crs.ini","CSR":"csr.ini","GEO":"geoareas.ini","NSR":"nsr.ini","OBS":"obs.ini","XC":"xenocanto.ini"}'
-
-*/
-
     include_once("lib/class.dataSet.php");   
     include_once("lib/class.inputPrepare.php"); 
     include_once("lib/class.logClass.php");   
@@ -24,26 +9,24 @@
 
     try
     {
-        $logger = new LogClass("log/validator.log","import datasets");
-        $dataset_logger = new LogClass("log/validator.log","dataset");
-        $input_logger = new LogClass("log/validator.log","input prepare");
-
         $jobPath = realpath(getenv("INCOMING_JOB_FOLDER"));
         $cfgPath = realpath(getenv("INI_FILE_FOLDER"));
-
-        $repoPath = realpath(getenv("JOB_FOLDER"));
+        $repoPath = realpath(getenv("VALIDATOR_JOB_FOLDER"));
         $tmpPath = realpath(getenv("TMP_FOLDER"));
+        $logFile = getenv("LOG_FILE");
 
-        $supplierInifFiles = json_decode(getenv("INI_FILE_LIST"),true);
+        $logger = new LogClass($logFile,"import datasets");
+        $dataset_logger = new LogClass($logFile,"dataset");
+        $input_logger = new LogClass($logFile,"input prepare");
 
-        if (empty($jobPath)) throw new Exception("no job path specified (env: INCOMING_JOB_FOLDER)");
+        $cfgFiles = json_decode(getenv("INI_FILE_LIST"),true);
+
+        if (empty($jobPath)) throw new Exception("no incoming job folder (env: INCOMING_JOB_FOLDER)");
         if (empty($cfgPath)) throw new Exception("no validator configurations path specified (env: INI_FILE_FOLDER)");
-        if (empty($repoPath)) throw new Exception("no repo path specified (env: JOB_FOLDER)");
-
+        if (empty($repoPath)) throw new Exception("no validator job folder specified (env: VALIDATOR_JOB_FOLDER)");
         if (!file_exists($jobPath)) throw new Exception(sprintf("job path doesn't exist: %s",$jobPath));
         if (!file_exists($cfgPath)) throw new Exception(sprintf("validator configurations path doesn't exist: %s",$cfgPath));
-
-        if (empty($supplierInifFiles)) throw new Exception("missing or malformed ini file list (env: INI_FILE_LIST)");
+        if (empty($cfgFiles)) throw new Exception("missing or malformed ini file list (env: INI_FILE_LIST)");
 
         $jobs=[];
 
@@ -63,19 +46,22 @@
 
             if (!isset($job["status"]) || $job["status"]!=$processableStatus)
             {
-                $logger->info(sprintf("skipping jobfile %s (status should be '%s', but is '%s')", $thisJobFile, $processableStatus, @$job["status"]));
-
+                $logger->info(sprintf("skipping jobfile %s (status should be '%s', but is '%s')", 
+                    $thisJobFile, $processableStatus, @$job["status"]));
                 continue;
             }
 
             $base_subdirs=[];
 
-            if (array_key_exists($job["data_supplier"], $supplierInifFiles))
+            if (array_key_exists($job["data_supplier"], $cfgFiles))
             {
-                $supplierConfigFile = $cfgPath . "/" . $supplierInifFiles[$job["data_supplier"]];
-                $cfg = readConfig($supplierConfigFile);
+                $cfgFile = $cfgPath . "/" . $cfgFiles[$job["data_supplier"]];
 
-                $logger->info(sprintf("config: %s", $supplierConfigFile));
+                if (!file_exists($cfgFile)) throw new Exception(sprintf("ini file doesn't exist: %s",$cfgFile));
+
+                $cfg = parse_ini_file($cfgFile,true,INI_SCANNER_TYPED);
+
+                $logger->info(sprintf("config: %s", $cfgFile));
 
                 $src = $job["source_directories"];
 
@@ -98,7 +84,7 @@
                 {
                     if (!file_exists($jobPath_specimen))
                     {
-                        $logger->warning(sprintf("folder doesn't exist: %s",$jobPath_specimen));
+                        $logger->error(sprintf("folder doesn't exist: %s",$jobPath_specimen));
                         unset($jobPath_specimen);
                     }
                     else
@@ -111,7 +97,7 @@
                 {
                     if (!file_exists($jobPath_multimedia))
                     {
-                        $logger->warning(sprintf("folder doesn't exist: %s",$jobPath_multimedia));
+                        $logger->error(sprintf("folder doesn't exist: %s",$jobPath_multimedia));
                         unset($jobPath_multimedia);
                     }
                     else
@@ -124,7 +110,7 @@
                 {
                     if (!file_exists($jobPath_taxon))
                     {
-                        $logger->warning(sprintf("folder doesn't exist: %s",$jobPath_taxon));
+                        $logger->error(sprintf("folder doesn't exist: %s",$jobPath_taxon));
                         unset($jobPath_taxon);
                     }
                     else
@@ -137,7 +123,7 @@
                 {
                     if (!file_exists($jobPath_geo))
                     {
-                        $logger->warning(sprintf("folder doesn't exist: %s",$jobPath_geo));
+                        $logger->error(sprintf("folder doesn't exist: %s",$jobPath_geo));
                         unset($jobPath_geo);
                     }
                     else
@@ -151,7 +137,7 @@
 
                 $d = new dataSet;
               
-                $p->setLogClass($dataset_logger);
+                $d->setLogClass($dataset_logger);
                 $d->setChangedNames($changes);
                 $d->setForceDataReplace($job["tabula_rasa"]);
                 $d->setDataSupplierCode($cfg["supplier_codes"]["source_system_code"]);
@@ -184,7 +170,7 @@
                     $d->setIsIncremental($cfg["geo"]["is_incremental"],"geo");
                 }
 
-                $d->setSupplierConfigFile($supplierConfigFile);
+                $d->setSupplierConfigFile($cfgFile);
                 $d->setOutputDirectory($repoPath);
                 $d->setReportDirectory($cfg["settings"]["report_dir"]);
 
@@ -212,11 +198,8 @@
                 }
 
                 $d->setIsTestRun($job["test_run"] ?? false);
-
                 $d->addInheritedMetadata("job_creator", ["source_directories" => $job["source_directories"]]);
-
                 $d->makeDataset();
-
                 $d->prepareSetForProcessing();
 
                 $dataset_filename = $d->getDatasetFilename();
@@ -238,7 +221,7 @@
             }
             else
             {
-                $logger->warning(sprintf("unknown data supplier code %s",$job["data_supplier"]));
+                $logger->error(sprintf("unknown data supplier code %s",$job["data_supplier"]));
             }
         }
 
@@ -247,6 +230,6 @@
     } 
     catch(Exception $e)
     {
-        $logger->error($e->getMessage() . "; exiting");
+        $logger->error($e->getMessage());
         exit(1);
     }

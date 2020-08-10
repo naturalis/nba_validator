@@ -1,7 +1,7 @@
 <?php
 
 /*
-	INCOMING_JOB_FILES
+	VALIDATOR_JOB_FOLDER
 	VALIDATED_OUTPUT_FOLDER
 	OUTGOING_JOB_FOLDER
 	OUTGOING_OUTPUT_FOLDER	
@@ -15,18 +15,24 @@
     include_once("lib/class.logClass.php");   
 	include_once("lib/functions.php");
 
-    $logger = new LogClass("log/validator.log","process datasets");
+    $logFile = getenv("LOG_FILE");
+    $logger = new LogClass($logFile,"create dataset");
 
-	$incoming_job_files = getenv('INCOMING_JOB_FILES') ?: getenv('INCOMING_JOB_FILES');
-	$validated_output_folder = getenv('VALIDATED_OUTPUT_FOLDER') ?: getenv('VALIDATED_OUTPUT_FOLDER');
-	$outgoing_job_folder = getenv('OUTGOING_JOB_FOLDER') ?: getenv('OUTGOING_JOB_FOLDER');
-	$outgoing_output_folder = getenv('OUTGOING_OUTPUT_FOLDER') ?: getenv('VALIDATED_OUTPUT_FOLDER');
-	$outgoing_test_job_folder = getenv('OUTGOING_TEST_JOB_FOLDER') ?: getenv('OUTGOING_TEST_JOB_FOLDER');
+	$incoming_job_files = getenv('VALIDATOR_JOB_FOLDER');
+	$validated_output_folder = getenv('VALIDATED_OUTPUT_FOLDER');
+	$outgoing_job_folder = getenv('OUTGOING_JOB_FOLDER');
+	$outgoing_output_folder = getenv('OUTGOING_OUTPUT_FOLDER');
+	$outgoing_test_job_folder = getenv('OUTGOING_TEST_JOB_FOLDER');
+
+	$suppress_slack_posts = getenv("SLACK_ENABLED") ? getenv("SLACK_ENABLED")==0 : false;
+	$slack_hook = getenv("SLACK_WEBHOOK");
+	$outfile_lines = getenv("OUTFILE_LINES") ? intval(getenv("OUTFILE_LINES")) : 500000;
+	$outfile_lines = ($outfile_lines<50000 && $outfile_lines!=0) ? 500000 : $outfile_lines;
 
 	try
 	{
 		foreach ([
-			"INCOMING_JOB_FILES" => $incoming_job_files,
+			"VALIDATOR_JOB_FOLDER" => $incoming_job_files,
 			"VALIDATED_OUTPUT_FOLDER" => $validated_output_folder,
 			"OUTGOING_JOB_FOLDER" => $outgoing_job_folder,
 			"OUTGOING_OUTPUT_FOLDER" => $outgoing_output_folder,
@@ -42,12 +48,6 @@
 		$logger->error(sprintf("aborting: %s",$e->getMessage()));
 		exit(0);
 	}
-
-	$suppress_slack_posts = isset($_ENV["SLACK_ENABLED"]) ? $_ENV["SLACK_ENABLED"]==0 : false;
-	$slack_hook = isset($_ENV["SLACK_WEBHOOK"]) ? $_ENV["SLACK_WEBHOOK"] : null;
-
-	$outfile_lines = isset($_ENV["outfile_lines"]) ? intval($_ENV["outfile_lines"]) : 500000;
-	$outfile_lines = ($outfile_lines<50000 && $outfile_lines!=0) ? 500000 : $outfile_lines;
 
 	// read available datasets
 	$datasets = glob(rtrim($incoming_job_files,"/") . "/*.json");
@@ -74,7 +74,7 @@
 
 		$time_pre = microtime(true);
 
-		$job_runner = new jobRunner($job);
+		$job_runner = new JobRunner($job);
 		$job_logger = new LogClass("log/validator.log","job runner");
 		$job_runner->setLogClass($job_logger);
 		$job_runner->setOutputDir($validated_output_folder);

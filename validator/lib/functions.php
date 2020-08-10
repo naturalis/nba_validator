@@ -116,4 +116,3 @@
 		return postHttpDocument( json_encode([ "text" => $doc]), $slack_hook );
 	}
 
-

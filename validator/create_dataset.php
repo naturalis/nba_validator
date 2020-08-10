@@ -1,10 +1,10 @@
 <?php
 
 	/*
-		SUPPPLIER_CONFIG_FILE   // iets.ini *
+		SUPPPLIER_CONFIG_FILE   // crs.ini *
+		VALIDATOR_JOB_FOLDER    // stored jobs *
 		FORCE_DATA_REPLACE      // 1 or 0 (or absent)
-		JOB_FOLDER              // stored jobs *
-		TMP_FOLDER                // tmp path (defaults to system tmp)
+		TMP_FOLDER              // tmp path (defaults to system tmp)
 	*/
 
     include_once("lib/class.dataSet.php");   
@@ -12,24 +12,27 @@
     include_once("lib/class.logClass.php");   
     include_once("lib/functions.php");
 
-    $logger = new LogClass("log/validator.log","create dataset");
-
 	try
 	{
+        $logFile = getenv("LOG_FILE");
+
+	    $logger = new LogClass($logFile,"create dataset");
+
 		if (empty(getenv('SUPPPLIER_CONFIG_FILE'))) throw new Exception("need a config file (env: SUPPPLIER_CONFIG_FILE)");
 
-		$cfg = parse_ini_file(getenv('SUPPPLIER_CONFIG_FILE'),true,INI_SCANNER_TYPED);
+		$cfg_file = getenv('SUPPPLIER_CONFIG_FILE');
+		$cfg = parse_ini_file($cfg_file,true,INI_SCANNER_TYPED);
 
-		if (!$cfg) throw new Exception(sprintf("can't read config file %s",$tmp));
+		if (!$cfg) throw new Exception(sprintf("can't read config file %s",$cfg_file));
 
-        $repoPath = realpath(getenv("JOB_FOLDER"));
+        $repoPath = realpath(getenv("VALIDATOR_JOB_FOLDER"));
         $tmpPath = realpath(getenv("TMP_FOLDER"));
 
-        if (empty($repoPath)) throw new Exception("no job folder specified (env: JOB_FOLDER)");
+		if (empty($repoPath)) throw new Exception("no validator job folder specified (env: VALIDATOR_JOB_FOLDER)");
 
-		$force_data_replace = getenv('FORCE_DATA_REPLACE') ?: getenv('FORCE_DATA_REPLACE')=='1';
+		$force_data_replace = getenv('FORCE_DATA_REPLACE') ? getenv('FORCE_DATA_REPLACE')=='1' : false;
 
-		$logger->info(sprintf("config: %s", $supplierConfigFile));
+		$logger->info(sprintf("config: %s", $cfg_file));
 		$logger->info(sprintf("repo: %s",$repoPath));
 		$logger->info(sprintf("tabula rasa: %s",( $force_data_replace ? "y" : "n" )));
 
