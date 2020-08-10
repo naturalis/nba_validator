@@ -4,10 +4,10 @@
 ```SHELL
 # all paths relative to container mappings!
 
-# folder `import datasets` looks in for prepared jobs
+# folder `import datasets`-process looks in for prepared jobs
 INCOMING_JOB_FOLDER=/data/incoming_jobs
 
-# folder `import datasets` and `create dataset` write validator-ready jobs to
+# folder `import datasets` and `create dataset`-processes write validator-ready jobs to
 VALIDATOR_JOB_FOLDER=/data/job_to_be_validated
 
 # folder validator writes validated jobs to
