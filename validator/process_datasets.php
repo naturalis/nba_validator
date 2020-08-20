@@ -16,7 +16,7 @@
 	include_once("lib/functions.php");
 
     $logFile = getenv("LOG_FILE");
-    $logger = new LogClass($logFile,"create dataset");
+    $logger = new LogClass($logFile,"process datasets");
 
 	$incoming_job_files = getenv('VALIDATOR_JOB_FOLDER');
 	$validated_output_folder = getenv('VALIDATED_OUTPUT_FOLDER');
