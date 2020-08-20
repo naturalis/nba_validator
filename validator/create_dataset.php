@@ -26,8 +26,8 @@
 
 		if (!$cfg) throw new Exception(sprintf("can't read config file %s",$cfg_file));
 
-        $repoPath = realpath(getenv("VALIDATOR_JOB_FOLDER"));
-        $tmpPath = realpath(getenv("TMP_FOLDER"));
+        $repoPath = getenv("VALIDATOR_JOB_FOLDER");
+        $tmpPath = getenv("TMP_FOLDER");
 
 		if (empty($repoPath)) throw new Exception("no validator job folder specified (env: VALIDATOR_JOB_FOLDER)");
 

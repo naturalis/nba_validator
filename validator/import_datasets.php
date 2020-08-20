@@ -9,10 +9,10 @@
 
     try
     {
-        $jobPath = realpath(getenv("INCOMING_JOB_FOLDER"));
-        $cfgPath = realpath(getenv("INI_FILE_FOLDER"));
-        $repoPath = realpath(getenv("VALIDATOR_JOB_FOLDER"));
-        $tmpPath = realpath(getenv("TMP_FOLDER"));
+        $jobPath = getenv("INCOMING_JOB_FOLDER");
+        $cfgPath = getenv("INI_FILE_FOLDER");
+        $repoPath = getenv("VALIDATOR_JOB_FOLDER");
+        $tmpPath = getenv("TMP_FOLDER");
         $logFile = getenv("LOG_FILE");
 
         $logger = new LogClass($logFile,"import datasets");
