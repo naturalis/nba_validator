@@ -22,6 +22,9 @@ OUTGOING_TEST_JOB_FOLDER=/data/test_jobs
 # output folder for the validator (intermediate folder when running jobs)
 VALIDATED_OUTPUT_FOLDER=/data/validator_output
 
+# folder validator writes failed jobs to
+OUTGOING_FAILED_JOBS_FOLDER=/data/failed_jobs/
+
 # folder with data supplier configurations
 # (usually a local checkout of https://github.com/naturalis/nba_validator_config/)
 INI_FILE_FOLDER=/config
