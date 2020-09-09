@@ -6,6 +6,7 @@
 	OUTGOING_JOB_FOLDER
 	OUTGOING_OUTPUT_FOLDER	
 	OUTGOING_TEST_JOB_FOLDER
+	OUTGOING_FAILED_JOBS_FOLDER
 */
 
 	require __DIR__ . '/vendor/autoload.php';
@@ -23,6 +24,7 @@
 	$outgoing_job_folder = getenv('OUTGOING_JOB_FOLDER');
 	$outgoing_output_folder = getenv('OUTGOING_OUTPUT_FOLDER');
 	$outgoing_test_job_folder = getenv('OUTGOING_TEST_JOB_FOLDER');
+	$outgoing_failed_job_folder = getenv('OUTGOING_FAILED_JOBS_FOLDER');
 
 	$suppress_slack_posts = getenv("SLACK_ENABLED") ? getenv("SLACK_ENABLED")==0 : false;
 	$slack_hook = getenv("SLACK_WEBHOOK");
@@ -36,7 +38,8 @@
 			"VALIDATED_OUTPUT_FOLDER" => $validated_output_folder,
 			"OUTGOING_JOB_FOLDER" => $outgoing_job_folder,
 			"OUTGOING_OUTPUT_FOLDER" => $outgoing_output_folder,
-			"OUTGOING_TEST_JOB_FOLDER" => $outgoing_test_job_folder
+			"OUTGOING_TEST_JOB_FOLDER" => $outgoing_test_job_folder,
+			"OUTGOING_FAILED_JOBS_FOLDER" => $outgoing_failed_job_folder
 		] as $key => $value)
 		{
 			if (empty($value)) throw new Exception(sprintf("%s not specified",$key));
@@ -123,6 +126,9 @@
 			else
 			{
 				$logger->info(sprintf("skipped moving files: job status = %s",$job["status"]));
+				$job_runner->deleteDataFiles();
+				$job_runner->deleteValidatedFiles();
+				$job_runner->moveJobFile( $outgoing_failed_job_folder );
 			}
 		}
 		else

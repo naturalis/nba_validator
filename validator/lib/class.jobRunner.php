@@ -237,6 +237,22 @@
 			$this->storeJobFile();
 		}
 
+		public function deleteValidatedFiles()
+		{
+			foreach((array)$this->job["validator"] as $key=>$file)
+			{				
+				foreach((array)$file["results"]["outfiles"]["valid"] as $file);
+				{
+					unlink($file);
+					$this->logClass->info(sprintf("unlinked %s",$file));							
+				}
+
+				unset($this->job["validator"][$key]["results"]["outfiles"]["valid"]);
+			}
+
+			$this->storeJobFile();
+		}
+
 		public function moveJobFile( $job_folder )
 		{
 			$job_folder = rtrim($job_folder,"/") . "/";
@@ -270,13 +286,25 @@
 						continue;
 					}
 
-					foreach($files as $key => $file)
+					if (in_array($class, ["indices","metadata_files"]))
 					{
-						if (isset($file["tmp_path"]) && file_exists($file["tmp_path"]))
+						if (isset($files["tmp_path"]) && file_exists($files["tmp_path"]))
 						{
-							unlink($file["tmp_path"]);
-							unset($this->job[$class][$type][$key]["tmp_path"]);
-							$this->logClass->info(sprintf("unlinked %s",$file["tmp_path"]));							
+							unlink($files["tmp_path"]);
+							unset($this->job[$class][$type]["tmp_path"]);
+							$this->logClass->info(sprintf("unlinked %s",$files["tmp_path"]));							
+						}
+					}
+					else
+					{
+						foreach($files as $key => $file)
+						{
+							if (isset($file["tmp_path"]) && file_exists($file["tmp_path"]))
+							{
+								unlink($file["tmp_path"]);
+								unset($this->job[$class][$type][$key]["tmp_path"]);
+								$this->logClass->info(sprintf("unlinked %s",$file["tmp_path"]));							
+							}
 						}
 					}
 				}
