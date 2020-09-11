@@ -792,4 +792,23 @@
 			$this->logClass->info(sprintf("test run override: global fail percentage  => %s%%",$this->globalFailPercentage));
 		}
 
+
+		public static function calculateJobSize( $job )
+		{
+			$size = 0;
+			if (isset($job["input"]))
+			{
+				foreach ($job["input"] as $datatype => $files)
+				{
+					foreach ($files as $file)
+					{
+						$size += filesize($file["tmp_path"]);
+					}
+				}
+			}
+
+			return $size;
+
+		}
+
 	}

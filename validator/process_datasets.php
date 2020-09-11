@@ -7,6 +7,8 @@
 	OUTGOING_OUTPUT_FOLDER	
 	OUTGOING_TEST_JOB_FOLDER
 	OUTGOING_FAILED_JOBS_FOLDER
+
+	job_disk_usage_factor
 */
 
 	require __DIR__ . '/vendor/autoload.php';
@@ -31,6 +33,8 @@
 	$outfile_lines = getenv("OUTFILE_LINES") ? intval(getenv("OUTFILE_LINES")) : 500000;
 	$outfile_lines = ($outfile_lines<50000 && $outfile_lines!=0) ? 500000 : $outfile_lines;
 
+	$job_disk_usage_factor = getenv("JOB_DISK_USAGE_FACTOR") ? intval(getenv("JOB_DISK_USAGE_FACTOR")) :  3;
+
 	try
 	{
 		foreach ([
@@ -45,6 +49,49 @@
 			if (empty($value)) throw new Exception(sprintf("%s not specified",$key));
 			if (!file_exists($value)) throw new Exception(sprintf("%s '%s' doesn't exist",$key,$value));
 		}
+
+		// read available datasets
+		$datasets = glob(rtrim($incoming_job_files,"/") . "/*.json");
+		usort($datasets, create_function('$a,$b', 'return filemtime($a) - filemtime($b);'));
+
+		// keep only the ones with status 'pending'
+		$jobs=[];
+		foreach ($datasets as $dataset)
+		{
+			$t = json_decode(file_get_contents($dataset),true);
+			if ($t["status"]=="pending")
+			{
+				$jobs[]=$t;
+			}
+		}
+
+		$logger->info(sprintf("found %s job(s)",count($jobs)));
+		$logger->info(sprintf("checking disk space (job disk usage factor: %s)",$job_disk_usage_factor));
+
+		$sizes = [];
+
+		foreach ($jobs as $job)
+		{
+			$sizes[$job["id"]] = JobRunner::calculateJobSize($job);
+		}
+
+		foreach ($sizes as $key => $size)
+		{
+		 	$logger->info(sprintf("job %s is %smb",$key,round($size/1000000,0)));
+		}
+
+		$total_job_sizes = array_reduce($sizes,function($carry,$item){ return $carry + $item; });
+		$disk_free_space = disk_free_space($validated_output_folder);
+
+		if ($disk_free_space < ($total_job_sizes * $job_disk_usage_factor))
+		{
+			throw new Exception(sprintf("not enough disk space; job total: %smb; free disk space: %smb; job disk usage factor: %s",
+				number_format(round($total_job_sizes/1000000,0)),
+				number_format(round($disk_free_space/1000000,0)),
+				$job_disk_usage_factor
+			));
+		}
+
 	}
 	catch(Exception $e)
 	{
@@ -52,24 +99,7 @@
 		exit(0);
 	}
 
-	// read available datasets
-	$datasets = glob(rtrim($incoming_job_files,"/") . "/*.json");
-	usort($datasets, create_function('$a,$b', 'return filemtime($a) - filemtime($b);'));
-
-	// keep only the ones with status 'pending'
-	$jobs=[];
-	foreach ($datasets as $dataset)
-	{
-		$t = json_decode(file_get_contents($dataset),true);
-		if ($t["status"]=="pending")
-		{
-			$jobs[]=$t;
-		}
-	}
-
 	//running jobs
-	$logger->info(sprintf("found %s job(s)",count($jobs)));
-
 	foreach ($jobs as $job)
 	{
 		$logger->info(sprintf("reading job %s",$job["id"]));
