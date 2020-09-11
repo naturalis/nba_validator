@@ -28,11 +28,9 @@
 		const JSON_EXTENSIONS = ["json","JSON","jsonl","JSONL","ndjson","NDJSON"];
 		const FILE_UPLOAD_READY = "upload_ready";
 		const FILE_PROCESSING = "processing";
-		const INDEX_FILE_MASK = "index-*.txt";
 		const DELETE_FILE_MASK = "delete*-*.txt";
 		const METADATA_FILE_MASK = "metadata-%s.json";
 		const DATA_TYPES = ["specimen","multimedia","taxon","geo"];
-		const INDEX_FILE_FIELD_SEP = "\t";
 		
 
 		public function makeDataset()
@@ -42,13 +40,11 @@
 			$this->_createTmpPath();
 			$this->_readFlags();
 			$this->_setProcessStatus();
-			$this->_getIndexFile();
 			$this->_getMetaDataFile();
 			$this->_getJsonFiles();
 			$this->_getDeleteFiles();
 			$this->_checkIfFilesArePresent();
 			// $this->_getFileCreationTimes();
-			$this->_readIndexFile();
 			$this->_setImportDateAndNotes();
 			$this->_generateHash();
 			$this->_makeSet();
@@ -203,9 +199,9 @@
 			}
 		}
 
-		public function setChangedNames( $index )
+		public function setChangedNames( $changed_file_names )
 		{
-			$this->changed_file_names=$index;
+			$this->changed_file_names=$changed_file_names;
 		}
 
 		public function setJobIdOverride($job_id_override)
@@ -267,27 +263,6 @@
 			{
 				$this->dirs[$key]["do_process"]=($dir["upload_ready"] && !$dir["processing"]) || $this->always_process;
 				$this->logClass->info(sprintf("do process %s? %s", $dir["path"], $this->dirs[$key]["do_process"] ? 'y' : 'n'));
-			}
-		}
-
-		private function _getIndexFile()
-		{
-			$t=&$this->dirs;
-			foreach ($t as $key => $dir) 
-			{
-				if ($dir["do_process"])
-				{
-					$f=glob($dir["path"] . "/" . self::INDEX_FILE_MASK);
-
-					if (count($f)>1)
-					{
-						throw new Exception(sprintf("multiple index files found in %s",$dir["path"]));
-					}
-					else
-					{
-						$this->dirs[$key]["index_file"] = ( count($f)==1 ? $f[0] : false );
-					}
-				}
 			}
 		}
 
@@ -362,29 +337,6 @@
 			}
 		}
 
-		private function _readIndexFile()
-		{
-			foreach($this->dirs as $key => $dir)
-			{
-				if(isset($dir["index_file"]) && $dir["index_file"]!=false)
-				{
-					$h = @fopen($dir["index_file"], "r");
-					if ($h)
-					{
-					    while (($buffer=fgets($h,4096)) !== false)
-					    {
-					    	$b=explode(self::INDEX_FILE_FIELD_SEP,trim($buffer));
-					    	if (count($b)==2)
-					    	{
-					    		$this->dirs[$key]["index"][]=["file"=>trim($b[0]),"lines"=>intval($b[1])];
-					    	}
-					    }
-					    fclose($h);
-					}
-				}
-			}
-		}
-
 		private function _setImportDateAndNotes()
 		{
 			foreach($this->dirs as $key => $dir)
@@ -450,18 +402,6 @@
 			return $current_file_name;
 		}
 
-		private function _getFileLines( $file, $index )
-		{
-			foreach ((array)$index as $val)
-			{
-				if($val["file"]==pathinfo($file,PATHINFO_BASENAME))
-				{
-					return $val["lines"];
-				}
-			}
-			return false;
-		}
-
 		private function _getTimeStamp()
 		{
 			$this->timestamp = microtime(true);
@@ -513,13 +453,7 @@
 
 			$files = [];
 			$deletes = [];
-			$indices = [];
 			$metadata_files = [];
-
-			foreach($this->present_datatypes as $type)
-			{
-				$indices[$type] = false;
-			}
 
 			foreach($this->dirs as $key => $dir)
 			{
@@ -528,12 +462,6 @@
 					foreach((array)$dir["json"] as $key2 => $file)
 					{
 						$t = ["path" => $file,"path_hash" => md5($file)];
-
-						if (isset($dir["index"]))
-						{
-							$t["lines"] = $this->_getFileLines($this->_getPreRenameFilename($file),$dir["index"]);
-						}
-
 						$files[$dir["type"]][] = $t;
 					}
 				}
@@ -543,17 +471,10 @@
 					foreach((array)$dir["delete"] as $key2 => $file)
 					{
 						$t = ["path" => $file,"path_hash" => md5($file)];
-
-						if (isset($dir["index"]))
-						{
-							$t["lines"] = $this->_getFileLines($this->_getPreRenameFilename($file),$dir["index"]);
-						}
-
 						$deletes[$dir["type"]][] = $t;
 					}
 				}
 
-				$indices[$dir["type"]]=$dir["index_file"];
 				$metadata_files[$dir["type"]]=$dir["metadata_file"];
 
 				$this->set["export_date"][$dir["type"]] = $dir["export_date"];
@@ -562,7 +483,6 @@
 			
 			$this->set["input"] = $files;
 			$this->set["delete"] = $deletes;
-			$this->set["indices"] = $indices;
 			$this->set["metadata_files"] = $metadata_files;
 			$this->set["inherited_metadata"] = $this->inherited_metadata;
 		}
@@ -632,7 +552,7 @@
 		{
 			$t=&$this->set;
 
-			foreach(["input","delete","indices","metadata_files"] as $docType)
+			foreach(["input","delete","metadata_files"] as $docType)
 			{
 				if (isset($t[$docType][$dataType]) )
 				{

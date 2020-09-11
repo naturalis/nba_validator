@@ -38,7 +38,7 @@ LOG_FILE=/log/validator.log
 # alternative temp-folder (optional, defaults to system default)
 TMP_FOLDER=/data/temporary
 
-# when processing, free disk space must be larger than (cumulative job size * JOB_DISK_USAGE_FACTOR) (optional, defaults to 3)
+# when processing, free disk space must be larger (cumulative job size * JOB_DISK_USAGE_FACTOR) (optional, defaults to 3)
 JOB_DISK_USAGE_FACTOR=2
 
 SLACK_ENABLED=0

@@ -66,32 +66,35 @@
 		}
 
 		$logger->info(sprintf("found %s job(s)",count($jobs)));
-		$logger->info(sprintf("checking disk space (job disk usage factor: %s)",$job_disk_usage_factor));
 
-		$sizes = [];
-
-		foreach ($jobs as $job)
+		if (count($jobs)>0)
 		{
-			$sizes[$job["id"]] = JobRunner::calculateJobSize($job);
+			$logger->info(sprintf("checking disk space (job disk usage factor: %s)",$job_disk_usage_factor));
+
+			$sizes = [];
+
+			foreach ($jobs as $job)
+			{
+				$sizes[$job["id"]] = JobRunner::calculateJobSize($job);
+			}
+
+			foreach ($sizes as $key => $size)
+			{
+			 	$logger->info(sprintf("job %s is %smb",$key,round($size/1000000,0)));
+			}
+
+			$total_job_sizes = array_reduce($sizes,function($carry,$item){ return $carry + $item; });
+			$disk_free_space = disk_free_space($validated_output_folder);
+
+			if ($disk_free_space < ($total_job_sizes * $job_disk_usage_factor))
+			{
+				throw new Exception(sprintf("not enough disk space; job total: %smb; free disk space: %smb; job disk usage factor: %s",
+					number_format(round($total_job_sizes/1000000,0)),
+					number_format(round($disk_free_space/1000000,0)),
+					$job_disk_usage_factor
+				));
+			}
 		}
-
-		foreach ($sizes as $key => $size)
-		{
-		 	$logger->info(sprintf("job %s is %smb",$key,round($size/1000000,0)));
-		}
-
-		$total_job_sizes = array_reduce($sizes,function($carry,$item){ return $carry + $item; });
-		$disk_free_space = disk_free_space($validated_output_folder);
-
-		if ($disk_free_space < ($total_job_sizes * $job_disk_usage_factor))
-		{
-			throw new Exception(sprintf("not enough disk space; job total: %smb; free disk space: %smb; job disk usage factor: %s",
-				number_format(round($total_job_sizes/1000000,0)),
-				number_format(round($disk_free_space/1000000,0)),
-				$job_disk_usage_factor
-			));
-		}
-
 	}
 	catch(Exception $e)
 	{

@@ -16,7 +16,6 @@
 		private $test_run = false;
 
 		const READ_BUFFER_SIZE = 100000;
-		const INDEX_FILE_FIELD_SEP = "\t";
 
 		public function __construct( $job )
 		{
@@ -57,7 +56,6 @@
 			$this->_setTestRun();
 			$this->_checkConfigFile();
 			$this->_readConfig();
-			$this->_checkNumberOfLines();
 			$this->_setGlobalFailPercentage();
 			$this->_setTestRunOverrides();
 			$this->_runValidator();
@@ -154,21 +152,6 @@
 					copy($file["tmp_path"],$tmpfile);
 					$unlink_me[] = $tmpfile;
 				}
-			}
-
-			foreach($this->job["indices"] as $type => $file)
-			{
-				$tmpsubdir = $tmpdir . "/" . $type;
-				if (@mkdir($tmpsubdir))
-				{
-					$rmdir_me[]=$tmpsubdir;
-				}
-
-				if ($file==false) continue;
-				if (!file_exists($file["tmp_path"])) continue;
-				$tmpfile = $tmpsubdir . "/" . basename($file["path"]);
-				rename($file["tmp_path"],$tmpfile);
-				$unlink_me[] = $tmpfile;
 			}
 
 			$tmpfile = $tmpdir . basename($this->job["dataset_filename"]);
@@ -272,7 +255,7 @@
 
 		public function deleteDataFiles()
 		{
-			foreach (["input","delete","indices","metadata_files"] as $class)
+			foreach (["input","delete","metadata_files"] as $class)
 			{
 				if (!isset($this->job[$class]))
 				{
@@ -286,7 +269,7 @@
 						continue;
 					}
 
-					if (in_array($class, ["indices","metadata_files"]))
+					if (in_array($class, ["metadata_files"]))
 					{
 						if (isset($files["tmp_path"]) && file_exists($files["tmp_path"]))
 						{
@@ -411,11 +394,6 @@
 				}
 			}
 
-			if (isset($this->job["pre-validator warnings"]))
-			{
-				$t["pre-validator warnings"]=$this->job["pre-validator warnings"];
-			}
-
 			if (isset($this->job["validator"]))
 			{
 				foreach($this->job["validator"] as $type=>$results)
@@ -484,80 +462,6 @@
 			$this->cfg = parse_ini_file($this->job["supplier_config_file"],true,INI_SCANNER_TYPED);
 		}
 
-		private function _checkNumberOfLines()
-		{
-			$warnings=[];
-
-			foreach($this->job["input"] as $type => $files)
-			{
-				$this->logClass->info(sprintf("checking lines: %s",$type));
-				$this->type = $type;
-
-				foreach($files as $file)
-				{
-					if (isset($file["lines"]) && $file["lines"]!==false)
-					{
-						$actual_lines = intval(exec("cat " . $file["tmp_path"] . " | wc -l"));
-						if ($actual_lines!==$file["lines"])
-						{
-							$line =
-								sprintf("number of lines mismatch in %s: index lists %s, file has %s",
-									basename($file["path"]),
-									$file["lines"],
-									$actual_lines
-								);
-							$warnings[$this->type][] = $line;
-							$this->logClass->warning($line);
-						}
-					}
-					else
-					{
-						$line = 
-							sprintf("did not check number of lines in %s (no number provided in index)",basename($file["path"]));
-						$warnings[$this->type][] = $line;
-						$this->logClass->warning($line);
-					}
-				}
-			}
-
-			foreach($this->job["delete"] as $type => $files)
-			{
-				$this->logClass->info(sprintf("checking lines: %s (delete file)",$type));
-				$this->type = $type;
-
-				foreach($files as $file)
-				{
-					$actual_lines = intval(exec("cat " . $file["tmp_path"] . " | wc -l"));
-
-					if (isset($file["lines"]) && $file["lines"]!==false)
-					{
-						if ($actual_lines!==$file["lines"])
-						{
-							$line = 
-								sprintf("number of lines mismatch in %s: index lists %s, file has %s",
-									basename($file["path"]),
-									$file["lines"],
-									$actual_lines
-								);
-							$warnings[$this->type][] = $line;
-							$this->logClass->warning($line);
-						}
-					}
-					else
-					{
-						$line =
-							sprintf("did not check number of lines in %s (no number provided in index)",basename($file["path"]));
-						$warnings[$this->type][] = $line;
-						$this->logClass->warning($line);
-					}
-
-					$this->job["delete_files_line_count"][$this->type][]= ["file"=> basename($file["path"]), "count" => $actual_lines];
-				}
-			}
-
-			$this->job["pre-validator warnings"] = $warnings;
-		}
-
 		private function _initValidator() 
 		{
 			$this->validator = new JsonValidator([
@@ -619,59 +523,6 @@
 			}
 		}
 
-		private function _reorderFilesByIndexFile( $index_file, $files )
-		{
-
-			if(!file_exists($index_file["tmp_path"]))
-			{
-				$this->logClass->info(sprintf("no reordening: index file %s doesn't exist",$index_file["tmp_path"]));
-				return $files;
-			}
-
-			$new_order=[];
-
-			$indexed_files = array_map(function($item)
-				{ return str_getcsv($item, self::INDEX_FILE_FIELD_SEP); }, 
-				file($index_file["tmp_path"],FILE_IGNORE_NEW_LINES|FILE_SKIP_EMPTY_LINES)
-    		);
-
-			foreach ($indexed_files as $indexed_file)
-			{
-				foreach ($files as $file)
-				{
-					if (strpos(strrev($file["path"]),strrev($indexed_file[0]))===0)
-					{
-						array_push($new_order,$file);
-					}
-				}
-			}
-
-			if (count($files)==count($new_order))
-			{
-				$altered=false;
-				foreach ($files as $key => $value)
-				{
-					if ($value["path"]!=$new_order[$key]["path"])
-					{
-						$altered=true;
-						break;
-					}
-				}
-
-				if ($altered)
-				{					
-					$this->logClass->info("altered processing order based on index file");	
-					return $new_order;
-				}
-			}
-			else
-			{
-				$this->logClass->info("no reordening: mismatch between index and actual files");
-			}
-
-			return $files;
-		}
-
 		private function _setGlobalFailPercentage()
 		{
 			$this->globalFailPercentage = $this->cfg["settings"]["global_fail_percentage"] ?? -1;
@@ -707,11 +558,6 @@
 				$this->logClass->info(sprintf("processing %s",$type));
 				$this->type = $type;
 				$this->_initValidator();
-
-				if ($this->job["indices"][$type]!=false)
-				{
-					$files = $this->_reorderFilesByIndexFile($this->job["indices"][$type],$files);
-				}
 
 				foreach((array)$files as $file)
 				{
