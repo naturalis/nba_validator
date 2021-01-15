@@ -30,7 +30,7 @@ OUTGOING_FAILED_JOBS_FOLDER=/data/failed_jobs/
 INI_FILE_FOLDER=/config
 
 # mapping of supplier to configurations-file
-INI_FILE_LIST={"BRAHMS":"brahms.ini","COL":"col.ini","CRS":"crs.ini","CSR":"csr.ini","GEO":"geoareas.ini","NSR":"nsr.ini","OBS":"obs.ini","XC":"xenocanto.ini"}
+INI_FILE_LIST={"BRAHMS":"brahms.ini","COL":"col.ini","CRS":"crs.ini","DCSR":"dcsr.ini","GEO":"geoareas.ini","NSR":"nsr.ini","OBS":"obs.ini","XC":"xenocanto.ini"}
 
 # general log file path
 LOG_FILE=/log/validator.log
